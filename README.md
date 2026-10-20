@@ -73,7 +73,7 @@ other formats do not receive invented QR scores. See the
 > `qrcode-ai-scanner` names below. The repository rename does not create a new
 > release, rename a package or change its license.
 
-The retained release references are **0.10.0 for Rust, CLI, Node and WASM**,
+The retained release references are **0.10.1 for Rust, CLI, Node and WASM**,
 and **0.9.0 for Python**. Use each registry page to check the version you install
 and its [`ScanReport`](spec/) contract.
 
@@ -84,6 +84,9 @@ and its [`ScanReport`](spec/) contract.
 | **Node.js** | [`@supernovae-st/qrcode-ai-scanner`](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner)<br>`npm i @supernovae-st/qrcode-ai-scanner` |
 | **Browser · WASM** | [`@supernovae-st/qrcode-ai-scanner-wasm`](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner-wasm)<br>`npm i @supernovae-st/qrcode-ai-scanner-wasm` |
 | **Python** | [`qrcode-ai-scanner`](https://pypi.org/project/qrcode-ai-scanner/)<br>`pip install qrcode-ai-scanner` |
+
+Browser integrations can use the automatic SIMD/compatible loader via
+`@supernovae-st/qrcode-ai-scanner-wasm/auto`.
 
 Per-runtime guides in [`docs/`](docs/) · code examples in [Quick start](#quick-start).
 
