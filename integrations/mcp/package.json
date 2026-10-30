@@ -19,13 +19,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/supernovae-st/qrcode-ai-scanner.git",
+    "url": "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner.git",
     "directory": "integrations/mcp"
   },
   "homepage": "https://qrcode-ai.com",
   "mcpName": "io.github.supernovae-st/qrcode-ai-scanner",
   "bugs": {
-    "url": "https://github.com/supernovae-st/qrcode-ai-scanner/issues"
+    "url": "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/issues"
   },
   "keywords": [
     "mcp",

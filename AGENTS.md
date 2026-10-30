@@ -1,11 +1,27 @@
-# AGENTS.md — qrcode-ai-scanner
+# AGENTS.md — qrai-qrcode-barcode-scanner
 
 Instructions for AI coding agents (Codex · Cursor · opencode · any
 harness) working in this repo. Humans: start at [README.md](README.md);
 releases follow [RELEASING.md](RELEASING.md) to the letter. Cursor also
 loads `.cursor/rules/scanner.mdc` (condensed always-on laws).
 
-## What this is
+## Source and extraction ownership · 30 October 2026
+
+This is the private upstream `supernovae-st/qrai-qrcode-barcode-scanner`, renamed
+from `supernovae-st/qrcode-ai-scanner`. All scanner fixes and improvements begin
+here. Export the selected source into `qr-code-scanner` and `barcode-scanner`,
+two autonomous engine repositories with separate builds and publications.
+Neither installed engine may require this private repository or the sibling
+engine. Record the upstream revision and export recipe for each extraction;
+backport product-side fixes here before regenerating either product.
+
+The rename and privacy change are complete. Source extraction, derived repos
+and independent artifacts remain to implement and qualify. Existing package
+names, tags, schema IDs, licenses and wire contracts retain their identity;
+renaming this repository does not rename or republish existing packages.
+Read [SOURCE-AND-EXTRACTION.md](SOURCE-AND-EXTRACTION.md) before release work.
+
+## Current implementation
 
 A Rust workspace producing EIGHT publish surfaces off one core —
 QR/barcode decoding + scannability scoring, specialty: artistic/

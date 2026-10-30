@@ -1,11 +1,14 @@
 ---
-description: qrcode-ai-scanner laws — additive wire, determinism, the judge role
+description: qrai-qrcode-barcode-scanner upstream laws — additive wire, determinism, the judge role
 alwaysApply: true
 ---
 
 # Scanner laws (full brief: AGENTS.md)
 
-- PUBLIC engine on six registries: the `ScanReport` wire is
+- Private Rust upstream; improve here, then extract two autonomous engines
+  (`qr-code-scanner` and `barcode-scanner`) with independent releases.
+  See SOURCE-AND-EXTRACTION.md. Existing package identities remain historical.
+- Existing public package contracts: the `ScanReport` wire is
   additive-only forever; score semantic changes bump `score_contract`;
   public enums stay `#[non_exhaustive]`.
 - "No QR found" is `Ok` with empty detections — `Err` = `QRS-001..005`

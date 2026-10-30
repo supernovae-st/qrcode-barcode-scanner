@@ -5,7 +5,7 @@
   "description": "Decode supplied image bytes locally; preserve exact QR/barcode payloads and scannability reports.",
   "websiteUrl": "https://qrcode-ai.com",
   "repository": {
-    "url": "https://github.com/supernovae-st/qrcode-ai-scanner",
+    "url": "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner",
     "source": "github",
     "subfolder": "integrations/mcp"
   },

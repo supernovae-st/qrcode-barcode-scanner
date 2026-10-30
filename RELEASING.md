@@ -1,5 +1,20 @@
 # Releasing
 
+## Current source/extraction boundary · 30 October 2026
+
+The upstream repository is now private `supernovae-st/qrai-qrcode-barcode-scanner`.
+The runbook below documents the retained combined-scanner release process.
+New product delivery requires source extraction into `qr-code-scanner` and
+`barcode-scanner`, followed by separate builds, clean-consumer qualification and
+publication receipts. Do not use a shared-source tag as evidence that either
+extracted engine has shipped. See [SOURCE-AND-EXTRACTION.md](SOURCE-AND-EXTRACTION.md).
+
+GitHub archives and downloads now require authorized access. Existing registry
+artifacts and OCI image metadata keep their immutable identities. Publisher
+OIDC grants, source links and store admission must be qualified for the actual
+product repository before publication; this rename does not migrate those grants.
+
+
 The proven runbook — three releases shipped with it on 2026-07-08 alone
 (0.6.0 · 0.7.0 · 0.7.1). Every step exists because skipping it bit us once;
 the dates in parentheses point at the incident.

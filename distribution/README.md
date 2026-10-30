@@ -1,5 +1,12 @@
 # Use the scanner with Docker, MCP or Agent Skills
 
+> Source access update · 30 October 2026: the upstream repository is now private
+> and named `supernovae-st/qrai-qrcode-barcode-scanner`. The following distribution
+> receipts and URLs describe historical combined-scanner artifacts. GitHub source
+> and release downloads now require repository access. They do not establish
+> delivery of the two extracted engines; see [the current contract](../SOURCE-AND-EXTRACTION.md).
+
+
 The scanner engine is **0.10.0**. The local MCP adapter and portable
 `qr-image-scanner` skill are **0.1.0**, distributed in the
 [agents-v0.1.0 release](https://github.com/supernovae-st/qrcode-ai-scanner/releases/tag/agents-v0.1.0).

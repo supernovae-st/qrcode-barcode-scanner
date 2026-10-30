@@ -9,9 +9,9 @@ values may appear).
 
 <Tip>
 Machine-readable mirrors — load these directly in tools and agents:
-- **JSON Schema**: [`spec/scan-report.schema.json`](https://github.com/supernovae-st/qrcode-ai-scanner/blob/main/spec/scan-report.schema.json)
+- **JSON Schema**: [`spec/scan-report.schema.json`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/scan-report.schema.json)
 - **TypeScript**: `report-types.d.ts` (shipped inside both npm packages)
-- **Golden examples** (real binary output, CI-validated): [`spec/examples/`](https://github.com/supernovae-st/qrcode-ai-scanner/tree/main/spec/examples)
+- **Golden examples** (real binary output, CI-validated): [`spec/examples/`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/tree/main/spec/examples)
 </Tip>
 
 ## Top level
@@ -40,7 +40,7 @@ Machine-readable mirrors — load these directly in tools and agents:
 <ResponseField name="hints" type="Hint[]" required>
   Machine-actionable improvement hints, stable order — the
   generate → scan → act → regenerate loop. Catalog:
-  [`spec/06-hints.md`](https://github.com/supernovae-st/qrcode-ai-scanner/blob/main/spec/06-hints.md).
+  [`spec/06-hints.md`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/06-hints.md).
 </ResponseField>
 
 <ResponseField name="alpha" type="AlphaReport">
@@ -53,7 +53,7 @@ Machine-readable mirrors — load these directly in tools and agents:
   (every endpoint a TESTED background, never interpolation) and a
   `placement` verdict (`any` · `light_only` · `dark_only` · `mixed` ·
   `none`). Full semantics:
-  [`spec/01-report.md` § Alpha](https://github.com/supernovae-st/qrcode-ai-scanner/blob/main/spec/01-report.md).
+  [`spec/01-report.md` § Alpha](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/01-report.md).
 </ResponseField>
 
 <ResponseField name="trace" type="PipelineTrace" required>
@@ -107,7 +107,7 @@ Machine-readable mirrors — load these directly in tools and agents:
   reports one); `fnc1` — `first` (GS1) or `second` (AIM application). An
   absent key means none was observed. Compare contents by identity
   (symbology, `raw`, `fnc1`, compatible `eci`), never by `text`. Rules:
-  [`spec/01-report.md` § Content](https://github.com/supernovae-st/qrcode-ai-scanner/blob/main/spec/01-report.md).
+  [`spec/01-report.md` § Content](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/01-report.md).
 </ResponseField>
 
 <ResponseField name="payload" type="Payload" required>
@@ -169,14 +169,14 @@ Machine-readable mirrors — load these directly in tools and agents:
 ```
 
 Trimmed from the golden
-[`spec/examples/rescued-occluded.json`](https://github.com/supernovae-st/qrcode-ai-scanner/blob/main/spec/examples/rescued-occluded.json),
+[`spec/examples/rescued-occluded.json`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/examples/rescued-occluded.json),
 scanned unbounded (`--budget-ms 0`), so the report is final. Its `uec` is
 not a count of corrected errors: with `rescue` among the engines,
 `worst_block_errors: 11` is the errors-only count of the stream the rescue
 corrected with erasures — 11 of 22, margin 0 — a distrust marker, which
 its `low_correction_margin` hint repeats
-([`spec/04-score.md`](https://github.com/supernovae-st/qrcode-ai-scanner/blob/main/spec/04-score.md)
+([`spec/04-score.md`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/04-score.md)
 § Synthetic UEC).
 
 The full field-by-field normative reference is
-[`spec/01-report.md`](https://github.com/supernovae-st/qrcode-ai-scanner/blob/main/spec/01-report.md).
+[`spec/01-report.md`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/01-report.md).

@@ -26,7 +26,7 @@ input and cancellation (`QRS-001..005`). A report is final when
 `report.trace.budget_exhausted == Some(false)`; set `budget_ms: None` for the
 unbounded, reproducible scan. Camera frames skip the PNG roundtrip
 via `ImageInput::rgba8`. Full docs: the
-[repository](https://github.com/supernovae-st/qrcode-ai-scanner) —
+[repository](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner) —
 `docs/ARCHITECTURE.md` + `docs/SCORING.md`.
 
 License: AGPL-3.0-or-later · © SuperNovae Studio.

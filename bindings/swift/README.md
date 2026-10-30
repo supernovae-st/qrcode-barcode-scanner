@@ -27,7 +27,7 @@ version and uses the committed Cargo lockfile.
 ```swift
 // Package.swift — X.Y.Z: the latest release tag
 dependencies: [
-    .package(url: "https://github.com/supernovae-st/qrcode-ai-scanner", from: "X.Y.Z"),
+    .package(url: "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner", from: "X.Y.Z"),
 ],
 // target deps:
 .product(name: "QrcodeAiScanner", package: "qrcode-ai-scanner"),

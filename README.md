@@ -1,6 +1,6 @@
 <div align="center">
 
-# QR Code AI Scanner
+# QR Code AI · QR and Barcode Scanner source
 
 **Decode the undecodable · and know your margin.**
 
@@ -12,7 +12,7 @@ photo-captured QR codes. Deterministic, sovereign, pure Rust.
 [![npm](https://img.shields.io/npm/v/@supernovae-st/qrcode-ai-scanner?style=flat-square&logo=npm&logoColor=white&label=npm&color=CB3837)](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner)
 [![PyPI](https://img.shields.io/pypi/v/qrcode-ai-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI&color=3776AB)](https://pypi.org/project/qrcode-ai-scanner/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0%20or%20Commercial-blue?style=flat-square)](LICENSING.md)
-[![CI](https://img.shields.io/github/actions/workflow/status/supernovae-st/qrcode-ai-scanner/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/supernovae-st/qrcode-ai-scanner/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/supernovae-st/qrai-qrcode-barcode-scanner/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/actions)
 
 **Part of the [QR Code AI](https://qrcode-ai.com) ecosystem**
 
@@ -20,7 +20,21 @@ photo-captured QR codes. Deterministic, sovereign, pure Rust.
 
 ---
 
-## Install · pick your surface
+## Private source and two extracted products
+
+This repository is **private** as of 30 October 2026 and is named
+[`supernovae-st/qrai-qrcode-barcode-scanner`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner).
+Make scanner improvements here first, then extract the selected source into
+`qr-code-scanner` and `barcode-scanner`. Each product owns an autonomous engine,
+its build artifacts and its publications. Read the [source/extraction contract](SOURCE-AND-EXTRACTION.md).
+
+The two extractions are planned, not delivered. The installation instructions
+below describe the historical combined scanner and its existing package names.
+GitHub source and release downloads now require repository access; historical
+public-access checks are not current public availability. Registry packages
+retain their published names and versions. No package was republished by this rename.
+
+## Historical combined scanner · installation reference
 
 One Rust core. **0.10.0 is published for Rust, CLI, Node and WASM**;
 Python's last verified public release is 0.9.0. Check each package's version
@@ -45,10 +59,10 @@ Consult each binding's README for its implementation and current install path:
 [`bindings/flutter/`](bindings/flutter/).
 
 **🐳 Containers and agents:** the CLI 0.10.0 is public on
-[GHCR](https://github.com/supernovae-st/qrcode-ai-scanner/pkgs/container/qrcode-ai-scanner)
+[GHCR](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/pkgs/container/qrcode-ai-scanner)
 and [Docker Hub](https://hub.docker.com/r/thibautmelen/qrcode-ai-scanner).
 The MCP adapter and portable skill 0.1.0 are in the
-[agents release](https://github.com/supernovae-st/qrcode-ai-scanner/releases/tag/agents-v0.1.0),
+[agents release](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/releases/tag/agents-v0.1.0),
 and the skill is also on [ClawHub](https://clawhub.ai/thibautmelen/skills/qr-image-scanner).
 Use the [installation guide](distribution/README.md) for exact downloads,
 immutable digests, licenses and qualified clients.

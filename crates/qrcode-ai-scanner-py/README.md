@@ -42,6 +42,6 @@ if report["detections"]:
   `eci`, never by `text`.
 
 The returned `dict` is the same `ScanReport` documented in the
-[spec](https://github.com/supernovae-st/qrcode-ai-scanner/tree/main/spec).
+[spec](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/tree/main/spec).
 
 License: AGPL-3.0-or-later · © SuperNovae Studio.

@@ -28,8 +28,8 @@ dynamic = ["version"]
 test = ["pytest", "jsonschema", "pillow"]
 
 [project.urls]
-Repository = "https://github.com/supernovae-st/qrcode-ai-scanner"
-Documentation = "https://github.com/supernovae-st/qrcode-ai-scanner/tree/main/docs"
+Repository = "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner"
+Documentation = "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/tree/main/docs"
 
 [tool.maturin]
 module-name = "qrcode_ai_scanner"

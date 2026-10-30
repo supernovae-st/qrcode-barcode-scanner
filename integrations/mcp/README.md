@@ -126,7 +126,7 @@ No generated archive, node_modules, tests, image fixtures or private reports
 are published in the npm archive. The source, runtime entry, schema and
 AGPL license are included.
 
-Source: [scanner repository](https://github.com/supernovae-st/qrcode-ai-scanner/tree/main/integrations/mcp).
+Source: [scanner repository](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/tree/main/integrations/mcp).
 Product: [QR Code AI](https://qrcode-ai.com).
 License: **AGPL-3.0-or-later**, including the adapter; see [LICENSE](LICENSE).
 

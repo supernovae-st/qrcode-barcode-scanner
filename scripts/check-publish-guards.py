@@ -1190,14 +1190,14 @@ def _oci_contract_problems(wf: dict, publisher: dict, first_publish: int) -> lis
     if not any(set(step) <= {"name", "run", "env"} and _block(step.get("run")) == OCI_INSPECT_RUN and (step.get("env") or {}) == {"ARCHITECTURE": "${{ matrix.architecture }}"} for step in _steps(inspector)):
         fail("OCI inspector must reload, require native execution and run the owning consumer assertions")
     expected_downloads = [
-        {"artifact-ids": "11903554096", "run-id": "38583785567", "repository": "supernovae-st/qrcode-ai-scanner", "digest-mismatch": "error", "github-token": "${{ github.token }}", "path": "qualified/amd64"},
-        {"artifact-ids": "11904033809", "run-id": "38583785567", "repository": "supernovae-st/qrcode-ai-scanner", "digest-mismatch": "error", "github-token": "${{ github.token }}", "path": "qualified/arm64"},
+        {"artifact-ids": "11903554096", "run-id": "38583785567", "repository": "supernovae-st/qrai-qrcode-barcode-scanner", "digest-mismatch": "error", "github-token": "${{ github.token }}", "path": "qualified/amd64"},
+        {"artifact-ids": "11904033809", "run-id": "38583785567", "repository": "supernovae-st/qrai-qrcode-barcode-scanner", "digest-mismatch": "error", "github-token": "${{ github.token }}", "path": "qualified/arm64"},
     ]
     downloads = [step.get("with") for step in _steps(publisher) if _uses(step)[0] == "actions/download-artifact"]
     if downloads != expected_downloads:
         fail("OCI publisher must download exactly the two frozen artifact IDs from the qualified run")
     inspected_downloads = [step.get("with") for step in _steps(inspector) if _uses(step)[0] == "actions/download-artifact"]
-    if inspected_downloads != [{"artifact-ids": "${{ matrix.artifact_id }}", "run-id": "38583785567", "repository": "supernovae-st/qrcode-ai-scanner", "digest-mismatch": "error", "github-token": "${{ github.token }}", "path": "qualified/${{ matrix.architecture }}"}]:
+    if inspected_downloads != [{"artifact-ids": "${{ matrix.artifact_id }}", "run-id": "38583785567", "repository": "supernovae-st/qrai-qrcode-barcode-scanner", "digest-mismatch": "error", "github-token": "${{ github.token }}", "path": "qualified/${{ matrix.architecture }}"}]:
         fail("OCI inspector must download its exact frozen platform artifact")
     for job_id in ("inspect", "publish", "consume-public"):
         given = jobs.get(job_id) or {}
