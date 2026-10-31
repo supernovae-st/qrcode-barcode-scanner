@@ -4,6 +4,55 @@ All notable changes to this workspace. Every surface versions together — the R
 crate + CLI, the npm node + wasm packages, the Python wheel, and the
 Kotlin/Android · Swift/iOS · Flutter bindings.
 
+## 0.11.0 — 2026-10-31
+
+### Fixed
+
+- A QR code found in the downscaled pyramid no longer suppresses a readable
+  neighboring linear barcode. A budgeted linear-only read at input resolution
+  completes QR pyramid results before the early return.
+  Regression coverage retains `STOCK-4827` beside a QR in fast, frame and full
+  profiles, including both browser WASM variants. Detection identity, QR quality
+  scoring and wire fields remain unchanged; `versions.pipeline` advances to 4.
+- Preserved the console candidate's Code 93 checksum rejection, small DataBar
+  decoding and guarded DataBar Expanded recovery. The consolidated rxing 0.9.3
+  adapter retains the local Expanded reader with its Apache-2.0 notices, valid
+  positive fixtures and illegal finder-sequence negative vector.
+- The complementary linear pass masks only measured regions of already admitted
+  QR symbols on its cloned plane. This avoids the false Code 39 `J` read from an
+  artistic QR's module texture while retaining genuine Code 39 symbols,
+  including a one-character `J` alone and beside a QR. Ordinary Code 39 admission
+  and scoring on the original image remain unchanged.
+
+### Added
+
+- The browser package's `/camera` entry exports a measured-geometry tracker,
+  normalized video projection and a camera capture controller. It supports
+  frame callbacks, serialized worker decoding, cancellation of late permission
+  answers and results, track revocation and cleanup on page departure. Geometry
+  stays absent when the reader only measured a scan line. Consumers own their
+  visual treatment and explicit actions on decoded content.
+- `/camera-overlay` provides framework-free corner brackets, stable keyboard
+  target selection and an explicit HTTP(S) payload action, with host theming,
+  contain/cover/fill geometry, mirroring and complete teardown.
+
+### Changed
+
+- Consolidated the compatible WASM/automatic loader and exact historical registry
+  probes from the 0.10.1 branch. The historical probes remain separately named;
+  they do not qualify 0.11.0 registry publication.
+
+## 0.10.1 — 2026-10-20
+
+### Fixed
+
+- The browser package includes a non-SIMD variant alongside the accelerated
+  build. The additive `/auto` entry detects capabilities in its caller's realm,
+  including workers, before selecting and downloading one binary. Initialization
+  diagnostics remain separate from scan execution errors and valid empty reports.
+  Existing root imports remain available; consumers opt in to automatic loading.
+  Decoding, report and score contracts are unchanged.
+
 ## 0.10.0 — 2026-10-13
 
 ### Fixed

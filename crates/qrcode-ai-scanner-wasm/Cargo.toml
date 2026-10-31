@@ -14,8 +14,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # dual-engine build: rxing rides along since the artistic-decode rates
-# demanded it (the wasm_support wiring landed); SIMD128 is enabled at
-# publish time by scripts/build-wasm.sh.
+# demanded it (the wasm_support wiring landed). scripts/build-wasm.sh builds
+# equivalent SIMD128 and non-SIMD variants from this same configuration.
 qrcode-ai-scanner = { path = "../qrcode-ai-scanner", default-features = false, features = [
   "engine-rqrr",
   "engine-rxing",
@@ -27,7 +27,7 @@ serde.workspace = true
 
 # rxing is pulled transitively; on wasm32 its chrono needs wasmbind
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-rxing = { version = "=0.9.1", default-features = false, features = [
+rxing = { version = "=0.9.3", default-features = false, features = [
   "decoders",
   "multi_barcode_readers",
   "full_barcode_format_support",

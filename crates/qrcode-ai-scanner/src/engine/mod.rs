@@ -7,6 +7,8 @@
 
 pub(crate) mod charset;
 pub(crate) mod content;
+#[cfg(feature = "engine-rxing")]
+mod databar_expanded;
 pub(crate) mod locate;
 pub(crate) mod reconcile;
 #[cfg(feature = "engine-rqrr")]
@@ -77,6 +79,10 @@ pub(crate) struct RawDetection {
     /// published, they keep the reads of different symbols apart: rxing's
     /// QR-family result points, rqrr's grid bounds. Attempt space here.
     pub location: Option<[Point; 4]>,
+    /// Measured outer corners of a decoded matrix symbol, in attempt space.
+    /// Internal exclusion evidence only: never inferred from three finder
+    /// centres and never substituted for published/scored geometry.
+    pub matrix_region: Option<[Point; 4]>,
     /// What the re-read needs, when it may run for this read: a port read
     /// whose modifier leaves its declarations unverified, an rqrr read whose
     /// grid decided nothing. Attempt space.
@@ -191,6 +197,7 @@ impl RawDetection {
             segments: Segments::NotObserved,
             engine_reading: EngineReading::None,
             location: None,
+            matrix_region: None,
             locate: None,
             needs_confirmation: false,
             margin: crate::rescue::Margin::Unknown,
@@ -245,6 +252,10 @@ fn inject_probe_panic(filter: FormatFilter) {
 pub(crate) enum FormatFilter {
     /// Everything rxing supports + rqrr.
     All,
+    /// Linear barcodes only: complete their native-resolution read after a
+    /// QR succeeds on a downscaled pyramid image.
+    #[cfg(feature = "engine-rxing")]
+    Linear,
     /// QR · Micro QR · rMQR (+ rqrr) — the artistic-recovery stages are
     /// QR-calibrated; paying the 1D/PDF417/DataMatrix detectors on every
     /// deep rung starves the budget for nothing.

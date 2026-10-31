@@ -436,7 +436,7 @@ fn every_category_report_validates_against_the_wire_schema() {
         );
         assert_eq!(
             report["versions"],
-            serde_json::json!({"scanner": env!("CARGO_PKG_VERSION"), "pipeline": 3, "score_contract": 5}),
+            serde_json::json!({"scanner": env!("CARGO_PKG_VERSION"), "pipeline": 4, "score_contract": 5}),
             "{rel}: versions block is the wire's compatibility anchor"
         );
     }

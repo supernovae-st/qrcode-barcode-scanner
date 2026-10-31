@@ -86,11 +86,8 @@ settle a stage, stop S5 or be published:
   from noise — wait for a second read of the same symbology and bytes
   from a plane at least 1.25× larger or smaller; right after the first
   read the scanner decodes that symbology once on the plane at three
-  quarters of its size (not yet for DataBar, until the core crate
-  requires rxing 0.9.3). A read still waiting when the walk ends is
-  refused. S4 and S5 read the QR family only, so in every profile a
-  DataBar in an image whose longest side is under 640 px is read at one
-  size and refused.
+  quarters of its size. The pinned rxing 0.9.3 enables this for small
+  DataBar images too. A read still waiting when the walk ends is refused.
 - **Read checks.** A DataBar text is exactly fourteen digits; a plain port
   read whose bytes are not its text is refused.
 

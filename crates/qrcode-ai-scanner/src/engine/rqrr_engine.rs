@@ -134,6 +134,7 @@ pub(super) fn decode(luma: &LumaImage, orient_candidates: bool) -> Pass {
             segments,
             engine_reading: EngineReading::None,
             location: Some(bounds),
+            matrix_region: Some(bounds),
             locate,
             needs_confirmation: false,
             margin,

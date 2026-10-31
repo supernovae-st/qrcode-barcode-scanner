@@ -906,9 +906,9 @@ impl Versions {
     pub fn current() -> Self {
         Self {
             scanner: env!("CARGO_PKG_VERSION").to_owned(),
-            // pipeline 3: exact content — every read is collected, then
-            // reconciled by content identity (spec/01 § Content)
-            pipeline: 3,
+            // pipeline 4: native-resolution linear completion after a QR
+            // pyramid read, plus independently confirmed DataBar reads.
+            pipeline: 4,
             // score contract 5: the correction-margin cap on the verified
             // orientation's stream, interrupted judgments absent, probes
             // matched by content identity
@@ -1239,8 +1239,8 @@ mod tests {
         let v = Versions::current();
         assert_eq!(v.scanner, env!("CARGO_PKG_VERSION"));
         assert_eq!(
-            v.pipeline, 3,
-            "pipeline v3 = collect-then-reconcile reads and exact content; \
+            v.pipeline, 4,
+            "pipeline v4 = linear completion and confirmed DataBar reads; \
              a bump must be deliberate"
         );
         assert_eq!(

@@ -294,7 +294,8 @@ impl<'a> Binarized<'a> {
                 self.img.data().to_vec(),
                 self.img.width(),
                 self.img.height(),
-            );
+            )
+            .ok()?;
             rxing::common::HybridBinarizer::new(source)
                 .get_black_matrix()
                 .ok()

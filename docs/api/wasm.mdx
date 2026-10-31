@@ -1,6 +1,6 @@
 ---
 title: "Browser — @supernovae-st/qrcode-ai-scanner-wasm"
-description: "SIMD128 WASM for verify flows and live camera."
+description: "Automatic SIMD or compatible WASM loading for verify flows and live camera."
 ---
 
 ```bash
@@ -10,7 +10,39 @@ npm i @supernovae-st/qrcode-ai-scanner-wasm
 `wasm-pack` web target: the `.wasm` resolves via `import.meta.url`.
 Typed returns (`ScanReport`) ship in the package.
 
-## API
+## Compatible initialization
+
+```ts
+import { loadScanner } from "@supernovae-st/qrcode-ai-scanner-wasm/auto";
+const scanner = await loadScanner();
+const report = scanner.scan_image(bytes, "full");
+const loadedVariant = scanner.variant; // simd | compatible
+```
+
+Use this additive entry in both the module worker and any main-thread fallback.
+It checks real WASM features in the calling realm before compiling the scanner,
+then fetches only one binary. Imports are safe during SSR; initialization still
+belongs to client/worker execution. Repeated and concurrent calls share one
+promise, including an initialization failure. An explicit user retry can create
+one fresh `createScannerLoader()`; there is no blind retry or automatic reload.
+
+`ScannerInitError` preserves its native `cause`, stable `code`, selected
+`variant` and optional HTTP `status`. Missing WASM, unsupported baseline features,
+explicitly unavailable SIMD, loader imports, asset network/HTTP/read failures,
+invalid headers, ambiguous WASM validation, compilation and instantiation have
+separate codes. A validation failure in an unknown asset can reflect malformed
+code or unexpected features. Inspect the actual asset and native cause instead
+of attributing every error to SIMD, browser age or CPU. These JS-only diagnostics
+do not change the Rust `QRS-xxx` catalog or any scan report fields.
+
+The compatible module requires mutable globals, bulk memory, sign extension,
+nontrapping conversions, multivalue and reference types. It removes the SIMD
+requirement; it does not promise compatibility with every WASM-capable browser.
+The package README documents the baseline probe, feature-limited build and
+factory options. Physical devices, real Safari and historical browser floors
+need their own acceptance evidence.
+
+## Existing explicit SIMD API
 
 ```ts
 import init, { scan_image, scan_frame, version }
@@ -48,7 +80,58 @@ report the budget cut says so (`trace.budget_exhausted === true`): a
 as 0.
 </Warning>
 
-## Bundler notes
+## Camera capture and visual selection
+
+From 0.11.0 the additive `/camera` and `/camera-overlay` entries provide capture,
+tracking and measured corner selection without a framework dependency. Imports
+do not request camera access. Keep decoding in a module worker: initialize
+`/auto`, call `scan_frame(rgba, width, height, "frame", 100)` and return its report
+through a promise-based adapter.
+
+```ts
+import { createCameraScanner, createDetectionTracker }
+  from "@supernovae-st/qrcode-ai-scanner-wasm/camera";
+import { createCameraOverlay }
+  from "@supernovae-st/qrcode-ai-scanner-wasm/camera-overlay";
+
+// The positioned container contains a centered object-fit video element.
+const tracker = createDetectionTracker({ holdMs: 700, smoothing: 0.35 });
+const overlay = createCameraOverlay({ video, container });
+const camera = createCameraScanner({
+  video,
+  scanFrame: scanFrameInWorker,
+  onResult(report, frame) {
+    overlay.update(tracker.update(report.detections, frame), frame);
+  },
+  onError(error) { showCameraError(error); },
+});
+
+// Call from the camera button; HTTPS or localhost is required.
+await camera.start();
+// On component removal:
+camera.stop();
+tracker.clear();
+overlay.destroy();
+```
+
+The capture loop samples new video frames, caps the long edge to 1280 pixels by
+default and serializes worker requests, including after stop/restart. Smaller
+frames can lose narrow barcodes; the limit is configurable. Stop invalidates
+late permission answers and results, stops tracks and cancels scheduled frames.
+Page hiding/departure and ended tracks also stop capture. The worker adapter
+must bound hung decodes and reject failed requests; scanner budgets are
+cooperative rather than hard worker timeouts.
+
+The tracker preserves exact engine content identities and smooths only measured
+corners. It never invents a rectangle for a scan line. Feed every completed
+report, including empty detections, to expire held targets. The visual helper
+supports contain/cover/fill, optional mirroring and keyboard selection. It uses
+text nodes for decoded content and opens HTTP(S) links only on explicit clicks.
+Customize `--qr-scanner-highlight`, `--qr-scanner-surface`,
+`--qr-scanner-text` and the `labels` option for your product. Physical camera
+acceptance remains a separate check from synthetic video tests.
+
+## Bundler configuration
 
 <AccordionGroup>
   <Accordion title="Vite / Nuxt">

@@ -807,6 +807,7 @@ impl Run<'_> {
         let side = dims.0.max(dims.1);
         read.scales = Some((side, side));
         read.geometry = geometry;
+        read.matrix_regions.extend(hit.matrix_region.map(place));
         (read, hit.locate)
     }
 
@@ -1139,19 +1140,17 @@ impl Run<'_> {
     /// `plane` at three quarters of its size, collected as an attempt of its
     /// own (its reads in no stage count). At most one per content and
     /// [`MAX_CONFIRMATIONS`] per walk, whatever the budget left, never after
-    /// cancellation. No `DataBar` (RSS-14) decode runs: the core crate admits
-    /// rxing below 0.9.3, whose RSS-14 reader can underflow, so a `DataBar`
-    /// is confirmed only by a read the walk makes anyway.
+    /// cancellation. The pinned rxing includes the RSS-14 padding underflow
+    /// fix, so small `DataBar` images receive this independent read too.
     fn confirm(&mut self, plane: &LumaImage, pending: Vec<(Symbology, Vec<u8>)>, inverts: bool) {
         for (symbology, raw) in pending {
             if self.cancel.is_cancelled() || self.confirmations.len() >= MAX_CONFIRMATIONS {
                 return;
             }
-            if symbology == Symbology::DataBar
-                || self
-                    .confirmations
-                    .iter()
-                    .any(|(own, bytes)| *own == symbology && *bytes == raw)
+            if self
+                .confirmations
+                .iter()
+                .any(|(own, bytes)| *own == symbology && *bytes == raw)
                 || self.store.confirmed(symbology, &raw)
             {
                 continue;
@@ -1301,6 +1300,58 @@ fn rescaled(mut corners: [Point; 4], from: (u32, u32), to: (u32, u32)) -> [Point
     corners
 }
 
+/// The linear-only completion searches outside already decoded QR symbols.
+/// Preserve every pixel outside the actual convex footprint: its bounding
+/// rectangle could also contain a genuine adjacent barcode. This plane is
+/// never used to measure or score the original symbols.
+#[cfg(feature = "engine-rxing")]
+#[expect(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "finite pixel bounds clamped to the validated, engine-capped image"
+)]
+fn exclude_matrix_regions(img: &LumaImage, regions: &[[Point; 4]]) -> LumaImage {
+    let mut data = img.data().to_vec();
+    for region in regions {
+        if !region.iter().all(|p| p.x.is_finite() && p.y.is_finite()) {
+            continue;
+        }
+        let turns: [f32; 4] = std::array::from_fn(|i| {
+            let (a, b, c) = (region[i], region[(i + 1) % 4], region[(i + 2) % 4]);
+            (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
+        });
+        if !turns.iter().all(|v| v.is_finite() && *v > 0.0)
+            && !turns.iter().all(|v| v.is_finite() && *v < 0.0)
+        {
+            continue;
+        }
+        let bounds = |axis: fn(&Point) -> f32, limit: u32| {
+            let lo = region.iter().map(axis).fold(f32::INFINITY, f32::min);
+            let hi = region.iter().map(axis).fold(f32::NEG_INFINITY, f32::max);
+            (
+                lo.floor().clamp(0.0, limit as f32) as u32,
+                hi.ceil().clamp(0.0, limit as f32) as u32,
+            )
+        };
+        let (left, right) = bounds(|p| p.x, img.width());
+        let (top, bottom) = bounds(|p| p.y, img.height());
+        for y in top..bottom {
+            for x in left..right {
+                let (px, py) = (x as f32 + 0.5, y as f32 + 0.5);
+                let sides: [f32; 4] = std::array::from_fn(|i| {
+                    let (a, b) = (region[i], region[(i + 1) % 4]);
+                    (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x)
+                });
+                if sides.iter().all(|v| *v >= 0.0) || sides.iter().all(|v| *v <= 0.0) {
+                    data[(y * img.width() + x) as usize] = 255;
+                }
+            }
+        }
+    }
+    LumaImage::new(data, img.width(), img.height())
+}
+
 /// Execute the ladder over normalized planes. `deadline` is the WHOLE-scan
 /// wall-clock bound, shared with the scoring stage (computed by the caller).
 pub(crate) fn run(
@@ -1350,6 +1401,37 @@ pub(crate) fn run_seeded(
                 &mut stages,
             )?;
             if stop || run.store.settled() {
+                // A QR surviving the thumbnail says nothing about a nearby
+                // linear barcode: its narrow bars may have disappeared in
+                // that downscale. Complete the enabled direct stage for the
+                // linear family before accepting the pyramid's early exit.
+                // This remains a planned, budgeted attempt, with ordinary
+                // cancellation and trace accounting.
+                #[cfg(feature = "engine-rxing")]
+                if !stop
+                    && config.direct
+                    && run
+                        .store
+                        .reconcile()
+                        .iter()
+                        .any(|d| d.symbology.is_qr_family())
+                {
+                    let regions = run.store.qr_regions();
+                    let original = run.orig;
+                    let _ = run.stage(
+                        "direct",
+                        vec![Attempt::plain(move || {
+                            let work = (luma.width(), luma.height());
+                            let regions: Vec<_> = regions
+                                .iter()
+                                .map(|&region| rescaled(region, original, work))
+                                .collect();
+                            exclude_matrix_regions(luma, &regions)
+                        })],
+                        engine::FormatFilter::Linear,
+                        &mut stages,
+                    )?;
+                }
                 break 'ladder;
             }
         }
@@ -2103,6 +2185,52 @@ mod ladder_mutant_kills {
 
     fn fresh_run(cancel: &CancelToken, orig: (u32, u32)) -> Run<'_> {
         Run::new(cancel, None, orig, Seed::default())
+    }
+
+    #[test]
+    #[cfg(feature = "engine-rxing")]
+    fn matrix_exclusion_preserves_the_pixels_outside_a_rotated_quad() {
+        let original = LumaImage::new(vec![17; 25], 5, 5);
+        let diamond = [
+            Point { x: 2.5, y: 0.5 },
+            Point { x: 4.5, y: 2.5 },
+            Point { x: 2.5, y: 4.5 },
+            Point { x: 0.5, y: 2.5 },
+        ];
+        let expected = [
+            17, 17, 255, 17, 17, 17, 255, 255, 255, 17, 255, 255, 255, 255, 255, 17, 255, 255, 255,
+            17, 17, 17, 255, 17, 17,
+        ];
+        let mut reversed = diamond;
+        reversed.reverse();
+        for region in [diamond, reversed] {
+            assert_eq!(
+                exclude_matrix_regions(&original, &[region]).data(),
+                expected
+            );
+        }
+        assert_eq!(original.data(), [17; 25]);
+    }
+
+    #[test]
+    #[cfg(feature = "engine-rxing")]
+    fn invalid_matrix_regions_never_exclude_pixels() {
+        let original = LumaImage::new(vec![17; 25], 5, 5);
+        for region in [
+            [Point { x: 1.0, y: 1.0 }; 4],
+            [
+                Point { x: 0.0, y: 0.0 },
+                Point { x: 4.0, y: 4.0 },
+                Point { x: 4.0, y: 0.0 },
+                Point { x: 0.0, y: 4.0 },
+            ],
+            [Point {
+                x: f32::NAN,
+                y: 1.0,
+            }; 4],
+        ] {
+            assert_eq!(exclude_matrix_regions(&original, &[region]), original);
+        }
     }
 
     fn qr_png(content: &str, module: u32) -> Vec<u8> {
@@ -3454,20 +3582,19 @@ mod ladder_mutant_kills {
     }
 
     #[test]
-    fn ladder_stops_after_pyramid_finds_a_symbol() {
-        // `stop || settled()` -> `&&`. A symbol decoded at the pyramid
-        // downscale must break the ladder before direct.
+    fn ladder_completes_linear_reads_after_pyramid_qr_then_stops() {
+        // A successful QR thumbnail still requires the enabled linear-only
+        // direct pass, then ends the walk without artistic QR recovery.
         let bytes = qr_png("https://qrcode-ai.com/pyr", 24); // > 512px longest
         let planes = normalize(&ImageInput::encoded(&bytes), &Limits::default()).unwrap();
         let mut config = ScanConfig::full();
         config.budget_ms = None;
         let outcome = run(&planes, &config, &CancelToken::new(), None).unwrap();
         assert_eq!(outcome.merged.len(), 1, "pyramid decodes the symbol");
-        assert!(
-            !stage_names(&outcome).contains(&"direct"),
-            "{:?}",
-            stage_names(&outcome)
-        );
+        #[cfg(feature = "engine-rxing")]
+        assert_eq!(stage_names(&outcome), ["pyramid", "direct"]);
+        #[cfg(not(feature = "engine-rxing"))]
+        assert_eq!(stage_names(&outcome), ["pyramid"]);
     }
 
     #[test]
@@ -3707,9 +3834,8 @@ mod ladder_mutant_kills {
 
     #[test]
     fn confirmation_decodes_are_bounded_clock_free_and_cancellable() {
-        // at most one per content and four per walk; no DataBar decode while
-        // rxing below 0.9.3 is admitted; past the deadline too, never after
-        // cancellation
+        // At most one per content and four per walk, including DataBar;
+        // past the deadline too, never after cancellation.
         let plane = LumaImage::new(vec![255; 64 * 64], 64, 64);
         let upce = |raw: &[u8]| (Symbology::UpcE, raw.to_vec());
         let cancel = CancelToken::new();
@@ -3728,7 +3854,12 @@ mod ladder_mutant_kills {
         run.confirm(&plane, pending, false);
         assert_eq!(
             run.confirmations,
-            [upce(b"1"), upce(b"3"), upce(b"4"), upce(b"5")]
+            [
+                upce(b"1"),
+                (Symbology::DataBar, b"2".to_vec()),
+                upce(b"3"),
+                upce(b"4")
+            ]
         );
         assert_eq!(run.attempts, attempts + 4, "one rank per decode");
         cancel.cancel();

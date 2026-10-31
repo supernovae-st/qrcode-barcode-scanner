@@ -1,4 +1,4 @@
-# 07 · The decode pipeline v3 (normative behavior)
+# 07 · The decode pipeline v4 (normative behavior)
 
 ```
 ImageInput (Encoded | Rgba8 | Luma8)
@@ -30,7 +30,17 @@ Normative properties:
    version ⇒ same attempt sequence, bit for bit (per platform; see the
    determinism caveats in 04-score.md).
 2. **Stage early-exit** — a stage that finds something still COMPLETES
-   (within-stage consensus preserved); the ladder then stops, unless among
+   (within-stage consensus preserved). When a downscaled pyramid finds a QR
+   code, the enabled direct stage first completes a linear-only read at input
+   resolution, within the ordinary budget and cancellation checks. A narrow
+   barcode lost during downscaling must not be suppressed by that QR success.
+   Both reads enter the same content reconciliation; the completion uses the
+   existing `direct` trace stage. Only during this complementary pass, the
+   measured convex regions of already admitted QR reads are masked on its
+   cloned work plane, so their module texture cannot become a neighboring
+   linear detection. The regions require four points measured by a reader;
+   reconstructed finder-center quadrilaterals are excluded. The original plane
+   and scoring input stay unchanged. The ladder then stops, unless among
    the reads collected so far (refused and withheld reads excluded) there
    is a QR Code read and every QR Code read only signals an ECI it could
    not locate: then the later enabled stages run, within the budget, so
@@ -271,14 +281,9 @@ protects reads it agrees with and keeps re-derivation running.
    once per content and at most four times per walk, whatever the budget
    left and never after cancellation; the decode is an attempt of its own,
    its time counted in the stage, its reads in no `detections_found`.
-   While the core crate admits rxing below 0.9.3 no DataBar (RSS-14)
-   decode of that kind runs, and a DataBar is confirmed only by a read the
-   walk makes anyway. Only S1–S3 read symbologies outside the QR family
-   (S1 at the 512 px pyramid side, when the plane is larger; S2 and S3 at
-   the engine-capped size), so in every profile a DataBar in an image
-   whose longest side is under 640 px is never read on two planes 1.25×
-   apart, and is refused. A read still waiting when the walk ends is
-   refused.
+   The pinned rxing 0.9.3 permits this bounded confirmation for DataBar
+   (RSS-14), including images below 640 px that the old pipeline could
+   not confirm. A read still waiting when the walk ends is refused.
 
 ## S5 — the erasure rescue (what `engines: ["rescue"]` means)
 

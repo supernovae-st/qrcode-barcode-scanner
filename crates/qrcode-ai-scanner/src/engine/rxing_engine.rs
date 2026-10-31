@@ -109,6 +109,20 @@ pub(super) fn decode(luma: &LumaImage, filter: super::FormatFilter) -> Vec<RawDe
     use rxing::BarcodeFormat as F;
     let possible = match filter {
         super::FormatFilter::All => None,
+        super::FormatFilter::Linear => Some(std::collections::HashSet::from([
+            F::EAN_13,
+            F::EAN_8,
+            F::UPC_A,
+            F::UPC_E,
+            F::CODE_128,
+            F::CODE_39,
+            F::CODE_93,
+            F::CODABAR,
+            F::ITF,
+            F::RSS_14,
+            F::RSS_EXPANDED,
+            F::TELEPEN,
+        ])),
         super::FormatFilter::QrFamily => Some(std::collections::HashSet::from([
             F::QR_CODE,
             F::MICRO_QR_CODE,
@@ -136,12 +150,40 @@ pub(super) fn decode(luma: &LumaImage, filter: super::FormatFilter) -> Vec<RawDe
             &mut hints,
         )
     };
-    let Ok(results) = found else {
-        // NotFound and friends — a miss, not an error.
-        return Vec::new();
-    };
-
+    let mut results = found.unwrap_or_default();
+    if matches!(
+        filter,
+        super::FormatFilter::All
+            | super::FormatFilter::Linear
+            | super::FormatFilter::Only(Symbology::DataBarExpanded)
+    ) && !results
+        .iter()
+        .any(|result| *result.getBarcodeFormat() == F::RSS_EXPANDED)
+    {
+        // The upstream reader can stop at an internal false finder. The
+        // patched reader retains checksums, stacked rows and independent
+        // confirmation; it only rejects incorrectly spaced finders.
+        if let Ok(expanded) = decode_expanded(luma) {
+            results.extend(expanded);
+        }
+    }
     results.iter().filter_map(observe).collect()
+}
+
+fn decode_expanded(luma: &LumaImage) -> rxing::common::Result<Vec<rxing::RXingResult>> {
+    use rxing::multi::MultipleBarcodeReader as _;
+    let source =
+        rxing::Luma8LuminanceSource::new(luma.data().to_vec(), luma.width(), luma.height())?;
+    let mut image = rxing::BinaryBitmap::new(rxing::common::HybridBinarizer::new(source));
+    let hints = rxing::DecodeHints {
+        TryHarder: Some(true),
+        AlsoInverted: Some(true),
+        ..Default::default()
+    };
+    rxing::multi::GenericMultipleBarcodeReader::new(
+        super::databar_expanded::RSSExpandedReader::default(),
+    )
+    .decode_multiple_with_hints(&mut image, &hints)
 }
 
 /// The pass of an rMQR-only filter (score cells, envelope probes): the
@@ -160,7 +202,7 @@ fn decode_rmqr(
     use rxing::multi::MultipleBarcodeReader as _;
     hints.TryHarder = hints.TryHarder.or(Some(true));
     let source =
-        rxing::Luma8LuminanceSource::new(luma.data().to_vec(), luma.width(), luma.height());
+        rxing::Luma8LuminanceSource::new(luma.data().to_vec(), luma.width(), luma.height())?;
     let mut image = rxing::BinaryBitmap::new(rxing::common::HybridBinarizer::new(source));
     rxing::multi::GenericMultipleBarcodeReader::new(rxing::MultiFormatReader::default())
         .decode_multiple_with_hints(&mut image, hints)
@@ -225,6 +267,7 @@ fn observe(result: &rxing::RXingResult) -> Option<RawDetection> {
         segments: Segments::NotObserved,
         engine_reading: EngineReading::None,
         location: None,
+        matrix_region: None,
         locate: None,
         needs_confirmation: false,
         margin: Margin::Unknown,
@@ -245,8 +288,17 @@ fn observe(result: &rxing::RXingResult) -> Option<RawDetection> {
         detection.needs_confirmation = needs_confirmation(symbology, ec_level);
         return Some(detection);
     }
-    detection.location = location(result.getPoints());
-    match reader(symbology, ec_level)? {
+    let reader = reader(symbology, ec_level)?;
+    detection.location = location(result.getPoints()).map(|points| match reader {
+        // rxing 0.9.3's grid sampler returns TL, TR, BL, BR. Keep the
+        // cyclic corner order required by the scanner's grid re-read.
+        Reader::Port => [points[0], points[1], points[3], points[2]],
+        Reader::Codewords(_) => points,
+    });
+    if reader == Reader::Port && result.getPoints().len() == 4 {
+        detection.matrix_region = detection.location;
+    }
+    match reader {
         Reader::Port => {
             let raw = result.getRawBytes();
             // a plain read of ASCII text carries that text's bytes: anything
@@ -1281,6 +1333,47 @@ mod tests {
         for rel in ["symbology/microqr.png", "clean/gen_v2_l.png"] {
             assert!(decode(&fixture(rel), only).is_empty(), "{rel}");
         }
+    }
+
+    #[test]
+    fn databar_readers_preserve_content_at_independent_scales_and_respect_filters() {
+        for (path, symbology, text) in [
+            (
+                "symbology/databar-small-regression.png",
+                Symbology::DataBar,
+                "09506000134352",
+            ),
+            (
+                "symbology/databar-expanded-bwipp-regression.png",
+                Symbology::DataBarExpanded,
+                "(01)09506000134352(10)DEMO",
+            ),
+        ] {
+            let original = fixture(path);
+            let longest = original.width().max(original.height());
+            let small = crate::transform::downscale_to(&original, longest * 3 / 4);
+            assert!(longest * 4 >= small.width().max(small.height()) * 5);
+            for plane in [&original, &small] {
+                for filter in [FormatFilter::All, FormatFilter::Only(symbology)] {
+                    let reads = decode(plane, filter);
+                    assert!(!reads.is_empty(), "{path} {filter:?}");
+                    assert!(
+                        reads.iter().all(|read| read.symbology == symbology
+                            && read.raw == text.as_bytes()
+                            && read.needs_confirmation),
+                        "{reads:?}"
+                    );
+                }
+                assert!(decode(plane, FormatFilter::QrFamily).is_empty());
+            }
+        }
+        assert!(
+            decode(
+                &fixture("symbology/ean13.png"),
+                FormatFilter::Only(Symbology::DataBarExpanded)
+            )
+            .is_empty()
+        );
     }
 
     #[test]
