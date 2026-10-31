@@ -4,6 +4,39 @@ All notable changes to this workspace. Every surface versions together — the R
 crate + CLI, the npm node + wasm packages, the Python wheel, and the
 Kotlin/Android · Swift/iOS · Flutter bindings.
 
+## 0.11.0 — 2026-10-31
+
+### Fixed
+
+- A QR code found in the downscaled pyramid no longer suppresses a readable
+  neighboring linear barcode. A budgeted linear-only read at input resolution
+  completes QR pyramid results before the early return.
+  Regression coverage retains `STOCK-4827` beside a QR in fast, frame and full
+  profiles, including both browser WASM variants. Detection identity, QR quality
+  scoring and wire fields remain unchanged; `versions.pipeline` advances to 4.
+- Preserved the console candidate's Code 93 checksum rejection, small DataBar
+  decoding and guarded DataBar Expanded recovery. The consolidated rxing 0.9.3
+  adapter retains the local Expanded reader with its Apache-2.0 notices, valid
+  positive fixtures and illegal finder-sequence negative vector.
+
+### Added
+
+- The browser package's `/camera` entry exports a measured-geometry tracker,
+  normalized video projection and a camera capture controller. It supports
+  frame callbacks, serialized worker decoding, cancellation of late permission
+  answers and results, track revocation and cleanup on page departure. Geometry
+  stays absent when the reader only measured a scan line. Consumers own their
+  visual treatment and explicit actions on decoded content.
+- `/camera-overlay` provides framework-free corner brackets, stable keyboard
+  target selection and an explicit HTTP(S) payload action, with host theming,
+  contain/cover/fill geometry, mirroring and complete teardown.
+
+### Changed
+
+- Consolidated the compatible WASM/automatic loader and exact historical registry
+  probes from the 0.10.1 branch. The historical probes remain separately named;
+  they do not qualify 0.11.0 registry publication.
+
 ## 0.10.1 — 2026-10-20
 
 ### Fixed

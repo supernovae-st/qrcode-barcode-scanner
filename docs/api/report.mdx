@@ -74,7 +74,7 @@ Machine-readable mirrors — load these directly in tools and agents:
 </ResponseField>
 
 <ResponseField name="versions" type="Versions" required>
-  Contract markers: `scanner` (semver), `pipeline` (3: exact content —
+  Contract markers: `scanner` (semver), `pipeline` (4: native-resolution linear completion after QR pyramid success; 3 introduced exact content —
   the original bytes, declarations read once, reads reconciled by content
   identity; since 2, transparent inputs flatten before decode),
   `score_contract` (5: the correction-margin cap on the verified
@@ -164,7 +164,7 @@ Machine-readable mirrors — load these directly in tools and agents:
     { "stage": "deep", "transforms_tried": 17, "ms": 75.4, "detections_found": 0 },
     { "stage": "rescue", "transforms_tried": 1, "ms": 0.1, "detections_found": 1 }
   ], "engine_panics": 0, "total_ms": 153.8, "budget_exhausted": false },
-  "versions": { "scanner": "0.9.0", "pipeline": 3, "score_contract": 5 }
+  "versions": { "scanner": "0.11.0", "pipeline": 4, "score_contract": 5 }
 }
 ```
 

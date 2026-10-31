@@ -1,4 +1,4 @@
-# 07 · The decode pipeline v3 (normative behavior)
+# 07 · The decode pipeline v4 (normative behavior)
 
 ```
 ImageInput (Encoded | Rgba8 | Luma8)
@@ -30,7 +30,12 @@ Normative properties:
    version ⇒ same attempt sequence, bit for bit (per platform; see the
    determinism caveats in 04-score.md).
 2. **Stage early-exit** — a stage that finds something still COMPLETES
-   (within-stage consensus preserved); the ladder then stops, unless among
+   (within-stage consensus preserved). When a downscaled pyramid finds a QR
+   code, the enabled direct stage first completes a linear-only read at input
+   resolution, within the ordinary budget and cancellation checks. A narrow
+   barcode lost during downscaling must not be suppressed by that QR success.
+   Both reads enter the same content reconciliation; the completion uses the
+   existing `direct` trace stage. The ladder then stops, unless among
    the reads collected so far (refused and withheld reads excluded) there
    is a QR Code read and every QR Code read only signals an ECI it could
    not locate: then the later enabled stages run, within the budget, so

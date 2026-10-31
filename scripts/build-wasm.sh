@@ -53,6 +53,7 @@ node ../../scripts/patch-wasm-pkg.mjs
 
 node test.mjs
 WASM_VARIANT=compatible node test.mjs
+node camera.test.mjs
 
 raw=$(wc -c <pkg/qrcode-ai-scanner_bg.wasm)
 gz=$(gzip -9 -c pkg/qrcode-ai-scanner_bg.wasm | wc -c)

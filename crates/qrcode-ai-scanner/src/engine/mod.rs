@@ -7,6 +7,8 @@
 
 pub(crate) mod charset;
 pub(crate) mod content;
+#[cfg(feature = "engine-rxing")]
+mod databar_expanded;
 pub(crate) mod locate;
 pub(crate) mod reconcile;
 #[cfg(feature = "engine-rqrr")]
@@ -245,6 +247,10 @@ fn inject_probe_panic(filter: FormatFilter) {
 pub(crate) enum FormatFilter {
     /// Everything rxing supports + rqrr.
     All,
+    /// Linear barcodes only: complete their native-resolution read after a
+    /// QR succeeds on a downscaled pyramid image.
+    #[cfg(feature = "engine-rxing")]
+    Linear,
     /// QR · Micro QR · rMQR (+ rqrr) — the artistic-recovery stages are
     /// QR-calibrated; paying the 1D/PDF417/DataMatrix detectors on every
     /// deep rung starves the budget for nothing.

@@ -42,24 +42,43 @@ const fixtures = [
 const normalize = value => Array.isArray(value) ? value.map(normalize) : value && typeof value === 'object'
   ? Object.fromEntries(Object.entries(value).filter(([key]) => !['ms', 'total_ms', 'elapsed_ms'].includes(key)).map(([key, child]) => [key, normalize(child)])) : value;
 const passed = [], runs = [];
+const mixedBytes = [...readFileSync(join(root, 'fixtures/symbology/mixed-code128-qr.png'))];
+const linearCases = [
+  ['symbology/code93-bwipp-checked.png', [['code93', 'SCANNER-93']]],
+  ['symbology/databar-small-regression.png', [['data_bar', '09506000134352']]],
+  ['symbology/databar-expanded-bwipp-regression.png', [['data_bar_expanded', '(01)09506000134352(10)DEMO']]],
+  ['invalid/code93-missing-checks.png', []],
+  ['invalid/databar-expanded-acfd.png', []],
+].map(([file, expected]) => ({ file, expected, bytes: [...readFileSync(join(root, 'fixtures', file))] }));
 // SSR import must not compile WASM, fetch assets or depend on window/self.
 const ssr = execFileSync(process.execPath, ['--input-type=module', '-e', `
   import assert from 'node:assert/strict';
   globalThis.WebAssembly = undefined;
   globalThis.fetch = () => { throw Error('unexpected SSR fetch'); };
   const mod = await import('@supernovae-st/qrcode-ai-scanner-wasm/auto');
+  const camera = await import('@supernovae-st/qrcode-ai-scanner-wasm/camera');
+  const overlay = await import('@supernovae-st/qrcode-ai-scanner-wasm/camera-overlay');
+  assert.equal(typeof camera.createCameraScanner, 'function');
+  assert.equal(typeof overlay.createCameraOverlay, 'function');
   assert.deepEqual(mod.scannerCapabilities(), {wasm:false,simd:false,baseline:false});
   await assert.rejects(mod.loadScanner(), e => e.code === 'wasm_unavailable');
   console.log('SSR import safe');
 `], { cwd: consumer, encoding: 'utf8' }).trim();
 assert.equal(ssr, 'SSR import safe'); passed.push('Packed SSR import does not require WebAssembly or fetch assets');
+const cameraPackage = join(consumer, 'node_modules/@supernovae-st/qrcode-ai-scanner-wasm');
+execFileSync(process.execPath, [join(root, 'crates/qrcode-ai-scanner-wasm/camera.test.mjs')], { cwd: consumer, stdio: 'pipe',
+  env: { ...process.env, QRSCAN_CAMERA_MODULE: pathToFileURL(join(cameraPackage, 'camera.js')).href } });
+execFileSync(process.execPath, [join(root, 'crates/qrcode-ai-scanner-wasm/camera-overlay.test.mjs')], { cwd: consumer, stdio: 'pipe',
+  env: { ...process.env, QRSCAN_CAMERA_PACKAGE: cameraPackage, QRSCAN_PLAYWRIGHT_MODULE: pathToFileURL(require.resolve('playwright')).href } });
+passed.push('Installed camera capture/tracking lifecycle and real-browser visual selection, geometry, payload safety and cleanup');
 execFileSync(process.execPath, [require.resolve('typescript/bin/tsc'), '--noEmit', '--strict', '--lib', 'ES2022,DOM',
   '--moduleResolution', 'bundler', '--module', 'ESNext', '--target', 'ES2022', 'typecheck.ts'], { cwd: consumer, stdio: 'pipe' });
 passed.push('Installed root and auto declarations typecheck');
 await vite.build({ root: consumer, logLevel: 'warn', build: { assetsInlineLimit: 0, target: 'es2020' }, worker: { format: 'es' } });
 const server = await vite.preview({ root: consumer, logLevel: 'warn', preview: { host: '127.0.0.1', port: 0 } });
 const base = `http://127.0.0.1:${server.httpServer.address().port}`;
-const runtimes = [{ name: 'chromium', browserType: chromium, disabled: false, options: {} }];
+const runtimes = [{ name: 'chromium', browserType: chromium, disabled: false,
+  options: process.env.QRSCAN_BROWSER_CHANNEL ? { channel: process.env.QRSCAN_BROWSER_CHANNEL } : {} }];
 if (process.env.QRSCAN_NO_SIMD_BROWSER) runtimes.push({ name: 'chromium-simd-disabled', options: {
   executablePath: process.env.QRSCAN_NO_SIMD_BROWSER, args: ['--js-flags=--noexperimental-wasm-simd'] }, browserType: chromium, disabled: true });
 if (process.env.QRSCAN_TEST_FIREFOX === '1') {
@@ -90,7 +109,7 @@ try {
         assert.equal(response.ok, true, `${fixture.name}: ${JSON.stringify(response)}`);
         assert.deepEqual(response.result.detections.map(d => d.content), fixture.expected, fixture.name);
         assert.equal(response.result.trace.budget_exhausted, false);
-        assert.deepEqual(response.result.versions, { scanner: manifest.version, pipeline: 3, score_contract: 5 });
+        assert.deepEqual(response.result.versions, { scanner: manifest.version, pipeline: 4, score_contract: 5 });
         reports.push(response.result); latency.push({ fixture: fixture.name, wallMs: performance.now() - started });
       }
       if (!disabled) {
@@ -112,6 +131,22 @@ try {
         assert.equal(forced.ok, false); assert.equal(forced.code, 'simd_unavailable'); assert.equal(forced.phase, 'initialization');
       }
       const main = await page.evaluate(() => window.harness.mainLoad());
+      for (const worker of disabled ? ['autoWorker'] : ['autoWorker', 'compatibleWorker']) {
+        for (const profile of ['fast', 'frame', 'full']) {
+          const mixed = await page.evaluate(({ worker, profile, bytes }) => window[worker].request({ bytes, profile }),
+            { worker, profile, bytes: mixedBytes });
+          assert.equal(mixed.ok, true);
+          assert.deepEqual(mixed.result.detections.map(d => [d.symbology, d.content.text]).sort(),
+            [['code128', 'STOCK-4827'], ['qr_code', 'https://qrc-ai.com/76xMa']]);
+        }
+        for (const test of linearCases) {
+          const result = await page.evaluate(({ worker, bytes }) => window[worker].request({ bytes }), { worker, bytes: test.bytes });
+          assert.equal(result.ok, true);
+          assert.deepEqual(result.result.detections.map(d => [d.symbology, d.content.text]).sort(), test.expected, test.file);
+        }
+      }
+      passed.push(`${runtime.name}: mixed QR and Code128 exact contents in fast/frame/full through installed worker variants`);
+      passed.push(`${runtime.name}: Code93 and DataBar positives and invalid-checksum/finder negatives through installed variants`);
       assert.equal(main.samePromise, true); assert.equal(main.variant, selected);
       const scanError = await page.evaluate(() => window.autoWorker.request({ bytes: [1,2,3] }));
       assert.equal(scanError.ok, false); assert.equal(scanError.phase, 'scan'); assert.match(scanError.message, /QRS-001/);

@@ -16,7 +16,7 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.10.1"
+version = "0.11.0"
 edition = "2024"
 rust-version = "1.88"
 license = "AGPL-3.0-or-later"
@@ -27,13 +27,13 @@ authors = [
 ]
 
 [workspace.dependencies]
-# engines — QR-only feature set verified against the published 0.9.1 tarball:
+# engines — feature set verified against the pinned rxing tarball:
 # `client_support` (chrono-tz/fancy-regex/uriparse payload parsing) is OFF — we own
 # payload classification; `image`/`imageproc` are OFF — we feed raw luma buffers.
 # wasm builds must add rxing `wasm_support` (chrono is an unconditional rxing dep).
-# Pin the qualified engine: 0.9.3 changes the luminance-source constructor
-# incompatibly. Library consumers resolve afresh and do not inherit our lock.
-rxing = { version = "=0.9.1", default-features = false, features = [
+# Pin the RSS-14 underflow and Code 93 fixes; the adapter uses this version
+# of the luminance-source constructor. Consumers do not inherit our lock.
+rxing = { version = "=0.9.3", default-features = false, features = [
   "decoders",
   "multi_barcode_readers",
   "full_barcode_format_support",

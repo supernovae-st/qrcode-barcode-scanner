@@ -115,8 +115,10 @@ NODE_FILES = frozenset({
 })
 WASM_FILES = frozenset({
     "LICENSE", "README.md", "package.json",
+    "LICENSE-APACHE-2.0", "THIRD-PARTY.md",
     "qrcode-ai-scanner.js", "qrcode-ai-scanner.d.ts", "qrcode-ai-scanner_bg.wasm",
     "report-types.d.ts",
+    "camera.js", "camera.d.ts", "camera-overlay.js", "camera-overlay.d.ts",
     "auto.js", "auto.d.ts", "compatible/qrcode-ai-scanner.js",
     "compatible/qrcode-ai-scanner.d.ts", "compatible/qrcode-ai-scanner_bg.wasm",
     "compatible/report-types.d.ts",
@@ -626,7 +628,9 @@ def inspect_npm(host: Host, path: pathlib.Path, notes=()) -> Artifact:
         check_wasm_manifest(art, pkg)
         check_equal_file(art, "report-types.d.ts", files.get("report-types.d.ts"), CANON_TYPES)
         check_equal_file(art, "compatible/report-types.d.ts", files.get("compatible/report-types.d.ts"), CANON_TYPES)
-        for source in ("auto.js", "auto.d.ts"):
+        for notice in ("LICENSE-APACHE-2.0", "THIRD-PARTY.md"):
+            check_equal_file(art, notice, files.get(notice), ROOT / "crates/qrcode-ai-scanner" / notice)
+        for source in ("auto.js", "auto.d.ts", "camera.js", "camera.d.ts", "camera-overlay.js", "camera-overlay.d.ts"):
             check_equal_file(art, source, files.get(source), WASM_DIR / source)
         dts = files.get("qrcode-ai-scanner.d.ts", b"").decode()
         retyped = all(
@@ -699,6 +703,10 @@ def check_wasm_manifest(art: Artifact, pkg: dict) -> None:
               exports.get("./auto") == {"types": "./auto.d.ts", "import": "./auto.js", "default": "./auto.js"}
               and exports.get(".") == {"types": "./qrcode-ai-scanner.d.ts", "import": "./qrcode-ai-scanner.js", "default": "./qrcode-ai-scanner.js"}
               and exports.get("./*") == "./*")
+    art.check("camera capture, tracking and visual overlay exports are retained",
+              all(exports.get(f"./{name}") == {"types": f"./{name}.d.ts", "import": f"./{name}.js", "default": f"./{name}.js"}
+                  for name in ("camera", "camera-overlay"))
+              and exports.get("./report-types") == {"types": "./report-types.d.ts"})
 
 
 def check_pins(art: Artifact, optional: dict, pkg: dict) -> None:
@@ -1649,20 +1657,23 @@ def _npm_wasm(version: str) -> dict:
                      "report-types.d.ts", "LICENSE"],
            "main": "qrcode-ai-scanner.js", "types": "qrcode-ai-scanner.d.ts",
            "exports": {".": {"types": "./qrcode-ai-scanner.d.ts", "import": "./qrcode-ai-scanner.js", "default": "./qrcode-ai-scanner.js"},
-                       "./auto": {"types": "./auto.d.ts", "import": "./auto.js", "default": "./auto.js"}, "./*": "./*"}}
+                       **{f"./{name}": {"types": f"./{name}.d.ts", "import": f"./{name}.js", "default": f"./{name}.js"}
+                          for name in ("auto", "camera", "camera-overlay")},
+                       "./report-types": {"types": "./report-types.d.ts"}, "./*": "./*"}}
     dts = ('export * from "./report-types";\n'
            "export function scan_frame(data: Uint8Array, width: number, height: number): ScanReport;\n"
            "export function scan_image(bytes: Uint8Array): ScanReport;\n")
     return {"package.json": json.dumps(pkg, indent=2).encode(), "README.md": (WASM_DIR / "README.md").read_bytes(),
             "LICENSE": LICENSE.read_bytes(), "qrcode-ai-scanner.js": b"export {};\n",
+            **{notice: (ROOT / "crates/qrcode-ai-scanner" / notice).read_bytes() for notice in ("LICENSE-APACHE-2.0", "THIRD-PARTY.md")},
             "qrcode-ai-scanner.d.ts": dts.encode(), "qrcode-ai-scanner_bg.wasm": b"\0asm\1\0\0\0",
             "report-types.d.ts": CANON_TYPES.read_bytes(),
             "compatible/qrcode-ai-scanner.js": b"export {};\n",
             "compatible/qrcode-ai-scanner.d.ts": dts.encode(),
             "compatible/qrcode-ai-scanner_bg.wasm": b"\0asm\1\0\0\0",
             "compatible/report-types.d.ts": CANON_TYPES.read_bytes(),
-            "auto.js": (WASM_DIR / "auto.js").read_bytes(),
-            "auto.d.ts": (WASM_DIR / "auto.d.ts").read_bytes()}
+            **{f"{name}.{ext}": (WASM_DIR / f"{name}.{ext}").read_bytes()
+               for name in ("auto", "camera", "camera-overlay") for ext in ("js", "d.ts")}}
 
 
 def _with_scripts(files: dict, **scripts: str) -> dict:
@@ -1775,7 +1786,7 @@ def self_test() -> int:
         judge("clean platform package", [npm("platform", _npm_platform(version, "linux-x64-gnu"))], PASS)
         judge("clean main package", [npm("main", _npm_main(version))], PASS)
         judge("clean wasm package", [npm("wasm", _npm_wasm(version))], PASS)
-        for missing in ("auto.js", "auto.d.ts", "compatible/qrcode-ai-scanner_bg.wasm", "compatible/report-types.d.ts"):
+        for missing in ("auto.js", "auto.d.ts", "camera.js", "camera.d.ts", "camera-overlay.js", "camera-overlay.d.ts", "LICENSE-APACHE-2.0", "THIRD-PARTY.md", "compatible/qrcode-ai-scanner_bg.wasm", "compatible/report-types.d.ts"):
             incomplete = {key: value for key, value in _npm_wasm(version).items() if key != missing}
             judge(f"wasm package missing {missing}", [npm("wasm-incomplete", incomplete)], FAIL, missing)
 

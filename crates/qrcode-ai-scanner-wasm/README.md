@@ -114,5 +114,45 @@ const live = scan_frame(new Uint8Array(frame.data.buffer), w, h);
 Same versioned `ScanReport` contract as the native package — detections,
 0-100 score with per-axis survival, synthetic UEC margin, actionable hints.
 
+## Camera and visual selection (0.11.0)
+
+`/camera` exports `createCameraScanner`, `createDetectionTracker` and
+`projectVideoPoint`. `/camera-overlay` exports `createCameraOverlay`: measured
+corner brackets, stable keyboard selection and an explicit HTTP(S) payload
+action, without a UI framework dependency. No permission prompt or network
+request occurs on helper import.
+
+```ts
+import { createDetectionTracker, createCameraScanner }
+  from '@supernovae-st/qrcode-ai-scanner-wasm/camera';
+import { createCameraOverlay }
+  from '@supernovae-st/qrcode-ai-scanner-wasm/camera-overlay';
+
+const tracker = createDetectionTracker();
+// container contains video and has position:relative; object-position:center.
+const overlay = createCameraOverlay({ video, container });
+const camera = createCameraScanner({ video, scanFrame: scanFrameInWorker,
+  onResult(report, frame) {
+    overlay.update(tracker.update(report.detections, frame), frame);
+  }, onError: showCameraError });
+await camera.start(); // call from the camera button
+// Component teardown: camera.stop(); tracker.clear(); overlay.destroy();
+```
+
+Provide a worker adapter returning a `ScanReport` promise. It calls `scan_frame`
+with the transferred RGBA buffer, dimensions and frame budget. Give it a timeout
+for hung requests. The capture helper serializes requests across restarts,
+invalidates late permission/results, releases tracks on stop/hide/departure and
+reports ended streams. The default capture limit is 1280 pixels on the long
+edge; increase it for narrow barcodes when device performance permits.
+
+Feed empty results as well as detections into the tracker to expire holds.
+Missing or degenerate geometry stays absent. The overlay supports centered
+contain/cover/fill, explicit mirroring, reduced motion and localized `labels`.
+Theme it through `--qr-scanner-highlight`, `--qr-scanner-surface` and
+`--qr-scanner-text`. The [browser API guide](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/main/docs/api/wasm.mdx)
+describes lifecycle and integration; synthetic browser checks do not qualify a
+physical camera or every mobile browser.
+
 License: AGPL-3.0-or-later · © SuperNovae Studio · part of
 [qrcode-ai.com](https://qrcode-ai.com).

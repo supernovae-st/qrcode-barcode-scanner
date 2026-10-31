@@ -19,6 +19,19 @@ const attempts = (report) => report.trace.stages.reduce((n, stage) => n + stage.
 const texts = (report) => report.detections.map((d) => d.content.text);
 const AXES = ["resolution", "blur", "contrast", "perspective", "rotation", "lighting"];
 
+// A readable matrix code must not end the pyramid before a neighboring 1D
+// symbol gets a sufficient-resolution read. Run in both package variants.
+for (const profile of ["fast", "frame", "full"]) {
+  const control = scan_image(fixture("symbology/code128-stock-4827.png"), profile, undefined, undefined, 0);
+  assert.deepEqual(control.detections.map(d => [d.symbology, d.content.text]), [["code128", "STOCK-4827"]]);
+  const mixed = scan_image(fixture("symbology/mixed-code128-qr.png"), profile, undefined, undefined, 0);
+  assert.deepEqual(mixed.detections.map(d => [d.symbology, d.content.text]).sort(),
+    [["code128", "STOCK-4827"], ["qr_code", "https://qrc-ai.com/76xMa"]]);
+  const barcode = mixed.detections.find(d => d.symbology === "code128");
+  assert.equal(barcode.meta.version, null, "linear read must not receive QR metadata");
+}
+console.log(`PASS ${process.env.WASM_VARIANT ?? 'simd'} mixed QR + Code128: fast, frame, full`);
+
 // one version end to end: the generated manifest, the module, the report
 assert.equal(version(), pkg.version);
 

@@ -7,7 +7,7 @@ self.onmessage = async ({ data }) => {
     const scanner = await load();
     phase = 'scan';
     const result = data.bytes
-      ? scanner.scan_image(new Uint8Array(data.bytes), 'full', undefined, undefined, data.budgetMs ?? 0,
+      ? scanner.scan_image(new Uint8Array(data.bytes), data.profile ?? 'full', undefined, undefined, data.budgetMs ?? 0,
         data.skipAxes, data.skipChecks)
       : null;
     self.postMessage({ id: data.id, ok: true, result, variant: scanner.variant,

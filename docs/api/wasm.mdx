@@ -80,7 +80,58 @@ report the budget cut says so (`trace.budget_exhausted === true`): a
 as 0.
 </Warning>
 
-## Bundler notes
+## Camera capture and visual selection
+
+From 0.11.0 the additive `/camera` and `/camera-overlay` entries provide capture,
+tracking and measured corner selection without a framework dependency. Imports
+do not request camera access. Keep decoding in a module worker: initialize
+`/auto`, call `scan_frame(rgba, width, height, "frame", 100)` and return its report
+through a promise-based adapter.
+
+```ts
+import { createCameraScanner, createDetectionTracker }
+  from "@supernovae-st/qrcode-ai-scanner-wasm/camera";
+import { createCameraOverlay }
+  from "@supernovae-st/qrcode-ai-scanner-wasm/camera-overlay";
+
+// The positioned container contains a centered object-fit video element.
+const tracker = createDetectionTracker({ holdMs: 700, smoothing: 0.35 });
+const overlay = createCameraOverlay({ video, container });
+const camera = createCameraScanner({
+  video,
+  scanFrame: scanFrameInWorker,
+  onResult(report, frame) {
+    overlay.update(tracker.update(report.detections, frame), frame);
+  },
+  onError(error) { showCameraError(error); },
+});
+
+// Call from the camera button; HTTPS or localhost is required.
+await camera.start();
+// On component removal:
+camera.stop();
+tracker.clear();
+overlay.destroy();
+```
+
+The capture loop samples new video frames, caps the long edge to 1280 pixels by
+default and serializes worker requests, including after stop/restart. Smaller
+frames can lose narrow barcodes; the limit is configurable. Stop invalidates
+late permission answers and results, stops tracks and cancels scheduled frames.
+Page hiding/departure and ended tracks also stop capture. The worker adapter
+must bound hung decodes and reject failed requests; scanner budgets are
+cooperative rather than hard worker timeouts.
+
+The tracker preserves exact engine content identities and smooths only measured
+corners. It never invents a rectangle for a scan line. Feed every completed
+report, including empty detections, to expire held targets. The visual helper
+supports contain/cover/fill, optional mirroring and keyboard selection. It uses
+text nodes for decoded content and opens HTTP(S) links only on explicit clicks.
+Customize `--qr-scanner-highlight`, `--qr-scanner-surface`,
+`--qr-scanner-text` and the `labels` option for your product. Physical camera
+acceptance remains a separate check from synthetic video tests.
+
+## Bundler configuration
 
 <AccordionGroup>
   <Accordion title="Vite / Nuxt">

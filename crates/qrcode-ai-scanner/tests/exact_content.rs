@@ -2777,31 +2777,28 @@ fn n8_a_databar_gtin_has_no_fnc1_key() {
     // the payload 0.9 gave it: DataBar is no retail GTIN carrier, and its
     // AI-less digits are no GS1 element string
     assert_eq!(payload(d), wire(r#"{"kind":"text"}"#));
-    // at its native 384 px no plane of another scale reads it, and while the
-    // core crate admits rxing below 0.9.3 no DataBar confirmation decode runs
-    // (that reader can underflow): a lone DataBar below 640 px is refused
+    // Its native 384 px plane now receives the same independent confirmation,
+    // with rxing 0.9.3's RSS-14 padding fix. Its content/FNC1 contract is equal.
     let report = scan_content(&fixture("symbology/databar-gtin.png"));
-    assert!(report.detections.is_empty(), "{:?}", summary(&report));
+    let d = one(&report);
+    assert_eq!(d.symbology, Symbology::DataBar);
+    assert_content(d, DATABAR_GTIN, "native DataBar");
+    assert_eq!(payload(d), wire(r#"{"kind":"text"}"#));
 }
 
 #[test]
-fn n8b_a_lone_small_databar_is_refused_in_every_profile() {
-    // The refusal is the walk's, not the frame profile's: fast's enhanced
-    // planes and full's deep grid are no plane of another scale (S3 reads
-    // at the engine-capped size, S4 only the QR family), so the native
-    // 384 px symbol publishes nothing there either, while twice its size
-    // each profile reads its fourteen digits.
+fn n8b_a_small_databar_is_confirmed_in_every_profile() {
+    // Both native and doubled renders require an independent read. The
+    // dedicated confirmation pass now runs for DataBar in every profile.
     for profile in [ScanProfile::Full, ScanProfile::Fast, ScanProfile::Frame] {
         let report = scan_with(
             &fixture("symbology/databar-gtin.png"),
             profile.clone(),
             None,
         );
-        assert!(
-            report.detections.is_empty(),
-            "{profile:?}: {:?}",
-            summary(&report)
-        );
+        let d = one(&report);
+        assert_eq!(d.symbology, Symbology::DataBar, "{profile:?}");
+        assert_content(d, DATABAR_GTIN, &format!("native {profile:?}"));
         let report = scan_with(&databar_gtin_twice(), profile.clone(), None);
         let d = one(&report);
         assert_eq!(d.symbology, Symbology::DataBar, "{profile:?}");

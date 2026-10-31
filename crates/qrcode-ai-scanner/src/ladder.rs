@@ -1139,19 +1139,17 @@ impl Run<'_> {
     /// `plane` at three quarters of its size, collected as an attempt of its
     /// own (its reads in no stage count). At most one per content and
     /// [`MAX_CONFIRMATIONS`] per walk, whatever the budget left, never after
-    /// cancellation. No `DataBar` (RSS-14) decode runs: the core crate admits
-    /// rxing below 0.9.3, whose RSS-14 reader can underflow, so a `DataBar`
-    /// is confirmed only by a read the walk makes anyway.
+    /// cancellation. The pinned rxing includes the RSS-14 padding underflow
+    /// fix, so small `DataBar` images receive this independent read too.
     fn confirm(&mut self, plane: &LumaImage, pending: Vec<(Symbology, Vec<u8>)>, inverts: bool) {
         for (symbology, raw) in pending {
             if self.cancel.is_cancelled() || self.confirmations.len() >= MAX_CONFIRMATIONS {
                 return;
             }
-            if symbology == Symbology::DataBar
-                || self
-                    .confirmations
-                    .iter()
-                    .any(|(own, bytes)| *own == symbology && *bytes == raw)
+            if self
+                .confirmations
+                .iter()
+                .any(|(own, bytes)| *own == symbology && *bytes == raw)
                 || self.store.confirmed(symbology, &raw)
             {
                 continue;
@@ -1350,6 +1348,28 @@ pub(crate) fn run_seeded(
                 &mut stages,
             )?;
             if stop || run.store.settled() {
+                // A QR surviving the thumbnail says nothing about a nearby
+                // linear barcode: its narrow bars may have disappeared in
+                // that downscale. Complete the enabled direct stage for the
+                // linear family before accepting the pyramid's early exit.
+                // This remains a planned, budgeted attempt, with ordinary
+                // cancellation and trace accounting.
+                #[cfg(feature = "engine-rxing")]
+                if !stop
+                    && config.direct
+                    && run
+                        .store
+                        .reconcile()
+                        .iter()
+                        .any(|d| d.symbology.is_qr_family())
+                {
+                    let _ = run.stage(
+                        "direct",
+                        vec![Attempt::plain(|| luma.clone())],
+                        engine::FormatFilter::Linear,
+                        &mut stages,
+                    )?;
+                }
                 break 'ladder;
             }
         }
@@ -3454,20 +3474,19 @@ mod ladder_mutant_kills {
     }
 
     #[test]
-    fn ladder_stops_after_pyramid_finds_a_symbol() {
-        // `stop || settled()` -> `&&`. A symbol decoded at the pyramid
-        // downscale must break the ladder before direct.
+    fn ladder_completes_linear_reads_after_pyramid_qr_then_stops() {
+        // A successful QR thumbnail still requires the enabled linear-only
+        // direct pass, then ends the walk without artistic QR recovery.
         let bytes = qr_png("https://qrcode-ai.com/pyr", 24); // > 512px longest
         let planes = normalize(&ImageInput::encoded(&bytes), &Limits::default()).unwrap();
         let mut config = ScanConfig::full();
         config.budget_ms = None;
         let outcome = run(&planes, &config, &CancelToken::new(), None).unwrap();
         assert_eq!(outcome.merged.len(), 1, "pyramid decodes the symbol");
-        assert!(
-            !stage_names(&outcome).contains(&"direct"),
-            "{:?}",
-            stage_names(&outcome)
-        );
+        #[cfg(feature = "engine-rxing")]
+        assert_eq!(stage_names(&outcome), ["pyramid", "direct"]);
+        #[cfg(not(feature = "engine-rxing"))]
+        assert_eq!(stage_names(&outcome), ["pyramid"]);
     }
 
     #[test]
@@ -3707,9 +3726,8 @@ mod ladder_mutant_kills {
 
     #[test]
     fn confirmation_decodes_are_bounded_clock_free_and_cancellable() {
-        // at most one per content and four per walk; no DataBar decode while
-        // rxing below 0.9.3 is admitted; past the deadline too, never after
-        // cancellation
+        // At most one per content and four per walk, including DataBar;
+        // past the deadline too, never after cancellation.
         let plane = LumaImage::new(vec![255; 64 * 64], 64, 64);
         let upce = |raw: &[u8]| (Symbology::UpcE, raw.to_vec());
         let cancel = CancelToken::new();
@@ -3728,7 +3746,12 @@ mod ladder_mutant_kills {
         run.confirm(&plane, pending, false);
         assert_eq!(
             run.confirmations,
-            [upce(b"1"), upce(b"3"), upce(b"4"), upce(b"5")]
+            [
+                upce(b"1"),
+                (Symbology::DataBar, b"2".to_vec()),
+                upce(b"3"),
+                upce(b"4")
+            ]
         );
         assert_eq!(run.attempts, attempts + 4, "one rank per decode");
         cancel.cancel();

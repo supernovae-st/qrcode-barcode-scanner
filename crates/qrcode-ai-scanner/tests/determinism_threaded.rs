@@ -57,9 +57,7 @@ fn symbology_fixtures() -> Vec<String> {
         .collect()
 }
 
-/// The `DataBar` fixture's native size reads at one scale only, and a lone
-/// `DataBar` read waits for one at an independent scale (07-pipeline
-/// § Acceptance): it publishes nothing there.
+/// The native `DataBar` receives its own independent confirmation decode.
 const DATABAR: &str = "symbology/databar-gtin.png";
 
 /// The `DataBar` fixture at twice its size (nearest neighbour): the 512 px
@@ -93,14 +91,15 @@ fn concurrent_scans_yield_byte_identical_reports() {
         ("clean/OK_68ms_100_4e875a2c.png", true),
         ("artistic/blob-style-monkey-logo.webp", true),
         ("frontier/scene-photo-overlay.webp", false),
+        ("invalid/code93-missing-checks.png", false),
+        ("invalid/databar-expanded-acfd.png", false),
     ]
     .into_iter()
     .map(|(rel, decodes)| (rel.to_owned(), fixture(rel), decodes))
     .collect();
     cases.extend(symbology_fixtures().into_iter().map(|rel| {
-        let decodes = rel != DATABAR;
         let bytes = fixture(&rel);
-        (rel, bytes, decodes)
+        (rel, bytes, true)
     }));
     cases.push((
         format!("{DATABAR} at twice its size"),
