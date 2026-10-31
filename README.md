@@ -1,54 +1,91 @@
 <div align="center">
 
-# QR Code AI · QR and Barcode Scanner source
+# QR Code & Barcode Scanner
 
-**Decode the undecodable · and know your margin.**
+**Read QR codes, barcodes and other 2D codes. Inspect the quality of artistic QR designs.**
 
-QR decoding + scannability scoring for artistic, AI-generated, and
-photo-captured QR codes. Deterministic, sovereign, pure Rust.
+One Rust engine for local image scanning — from product labels and ordinary
+QR codes to styled, AI-generated and photographed QR codes.
 
 [![crates.io](https://img.shields.io/crates/v/qrcode-ai-scanner?style=flat-square&logo=rust&logoColor=white&label=crates.io&color=dea584)](https://crates.io/crates/qrcode-ai-scanner)
 [![docs.rs](https://img.shields.io/docsrs/qrcode-ai-scanner?style=flat-square&logo=docsdotrs&logoColor=white&label=docs.rs)](https://docs.rs/qrcode-ai-scanner)
 [![npm](https://img.shields.io/npm/v/@supernovae-st/qrcode-ai-scanner?style=flat-square&logo=npm&logoColor=white&label=npm&color=CB3837)](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner)
 [![PyPI](https://img.shields.io/pypi/v/qrcode-ai-scanner?style=flat-square&logo=pypi&logoColor=white&label=PyPI&color=3776AB)](https://pypi.org/project/qrcode-ai-scanner/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0%20or%20Commercial-blue?style=flat-square)](LICENSING.md)
-[![CI](https://img.shields.io/github/actions/workflow/status/supernovae-st/qrai-qrcode-barcode-scanner/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/supernovae-st/qrcode-barcode-scanner/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/supernovae-st/qrcode-barcode-scanner/actions)
 
-**Part of the [QR Code AI](https://qrcode-ai.com) ecosystem**
+**[Formats](#supported-formats) · [Install](#install) · [Quick start](#quick-start) · [QR quality](#qr-quality-and-recovery) · [Results](#corpus-results) · [Documentation](#documentation--spec)**
+
+Maintained by [SuperNovae Studio](https://github.com/supernovae-st)
+for [QR Code AI](https://qrcode-ai.com).
 
 </div>
 
 ---
 
-## Private source and two extracted products
+<table>
+  <tr>
+    <th>QR codes</th>
+    <th>Barcodes</th>
+    <th>Artistic QR codes</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/gallery-clean.png" alt="A conventional QR code from the test gallery" width="180"></td>
+    <td align="center"><img src="docs/images/gallery-ean13.png" alt="An EAN-13 retail barcode from the test gallery" width="180"></td>
+    <td align="center"><img src="docs/images/gallery-artistic.png" alt="An artistic QR code integrated into an illustration" width="180"></td>
+  </tr>
+</table>
 
-This repository is **private** as of 30 October 2026 and is named
-[`supernovae-st/qrai-qrcode-barcode-scanner`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner).
-Make scanner improvements here first, then extract the selected source into
-`qr-code-scanner` and `barcode-scanner`. Each product owns an autonomous engine,
-its build artifacts and its publications. Read the [source/extraction contract](SOURCE-AND-EXTRACTION.md).
+Examples from the [documented gallery](docs/concepts/gallery.mdx), with retained
+scan reports. They illustrate supported use cases, not a promise to decode every image.
 
-The two extractions are planned, not delivered. The installation instructions
-below describe the historical combined scanner and its existing package names.
-GitHub source and release downloads now require repository access; historical
-public-access checks are not current public availability. Registry packages
-retain their published names and versions. No package was republished by this rename.
+## What you get
 
-## Historical combined scanner · installation reference
+- **Local decoding.** Process encoded images or raw camera frames in your own
+  application. The scanner library makes no network calls.
+- **One report across runtimes.** Get decoded content, its format, structured
+  payloads and diagnostic hints through Rust, CLI, Node, browser WASM or Python.
+- **Extra help for difficult QR designs.** Preprocessing, multiple decoders and
+  an erasure-recovery stage address damaged finder patterns, logos and artwork.
+- **QR quality diagnostics.** Measure resistance to blur, low contrast, resizing,
+  perspective, rotation and lighting; inspect transparent designs on different
+  backgrounds. A decode and a quality score are separate results.
 
-One Rust core. **0.10.0 is published for Rust, CLI, Node and WASM**;
-Python's last verified public release is 0.9.0. Check each package's version
-when consuming its [`ScanReport`](spec/) contract.
+## Supported formats
 
-| Surface | Package | Install | One-liner |
-|---|---|---|---|
-| 🦀 **Rust lib** | [`qrcode-ai-scanner`](https://crates.io/crates/qrcode-ai-scanner) · [docs.rs](https://docs.rs/qrcode-ai-scanner) | `cargo add qrcode-ai-scanner` | `Scanner::builder().build().scan(input)?` |
-| 💻 **CLI** | [`qrcode-ai-scanner-cli`](https://crates.io/crates/qrcode-ai-scanner-cli) | `cargo install qrcode-ai-scanner-cli` | `qrscan image.png --pretty` |
-| 📦 **Node** (server) | [`@supernovae-st/qrcode-ai-scanner`](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner) | `npm i @supernovae-st/qrcode-ai-scanner` | `await scan(buffer)` |
-| 🌐 **Browser** (WASM, SIMD) | [`@supernovae-st/qrcode-ai-scanner-wasm`](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner-wasm) | `npm i @supernovae-st/qrcode-ai-scanner-wasm` | `await init(); scan_image(bytes, "fast")` |
-| 🐍 **Python** | [`qrcode-ai-scanner`](https://pypi.org/project/qrcode-ai-scanner/) | `pip install qrcode-ai-scanner` | `import qrcode_ai_scanner as q; q.scan(png_bytes)` |
+| Family | Formats |
+| --- | --- |
+| **QR** | QR Code, Micro QR, rectangular Micro QR (rMQR) |
+| **Other 2D codes** | Data Matrix, Aztec, PDF417, MaxiCode |
+| **Retail barcodes** | EAN-13, EAN-8, UPC-A, UPC-E |
+| **Other 1D barcodes** | Code 128, Code 39, Code 93, Codabar, ITF, GS1 DataBar, GS1 DataBar Expanded, Telepen |
 
-Per-surface guides in [`docs/`](docs/) · code examples in the Quick start below.
+GS1 support includes element strings and Digital Link parsing, with validation
+details in the report. Each detection names its `symbology`. Advanced geometry,
+quality and recovery diagnostics belong to the QR family where measured;
+other formats do not receive invented QR scores. See the
+[report contract](spec/01-report.md) and [GS1 guide](docs/concepts/gs1.mdx).
+
+## Install
+
+> **Repository name and package names are different.** The source repository is
+> `supernovae-st/qrcode-barcode-scanner`. Existing releases still use the
+> `qrcode-ai-scanner` names below. The repository rename does not create a new
+> release, rename a package or change its license.
+
+The retained release references are **0.10.0 for Rust, CLI, Node and WASM**,
+and **0.9.0 for Python**. Use each registry page to check the version you install
+and its [`ScanReport`](spec/) contract.
+
+| Runtime | Package and installation |
+| --- | --- |
+| **Rust library** | [`qrcode-ai-scanner`](https://crates.io/crates/qrcode-ai-scanner) · [API reference](https://docs.rs/qrcode-ai-scanner)<br>`cargo add qrcode-ai-scanner` |
+| **Command line** | [`qrcode-ai-scanner-cli`](https://crates.io/crates/qrcode-ai-scanner-cli)<br>`cargo install qrcode-ai-scanner-cli` |
+| **Node.js** | [`@supernovae-st/qrcode-ai-scanner`](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner)<br>`npm i @supernovae-st/qrcode-ai-scanner` |
+| **Browser · WASM** | [`@supernovae-st/qrcode-ai-scanner-wasm`](https://www.npmjs.com/package/@supernovae-st/qrcode-ai-scanner-wasm)<br>`npm i @supernovae-st/qrcode-ai-scanner-wasm` |
+| **Python** | [`qrcode-ai-scanner`](https://pypi.org/project/qrcode-ai-scanner/)<br>`pip install qrcode-ai-scanner` |
+
+Per-runtime guides in [`docs/`](docs/) · code examples in [Quick start](#quick-start).
 
 **📱 Mobile + cross-platform:** Kotlin/Android, Swift/iOS (UniFFI → SwiftPM)
 and Flutter/Dart (flutter_rust_bridge → pub.dev) have source bindings.
@@ -58,24 +95,30 @@ Consult each binding's README for its implementation and current install path:
 [`bindings/kotlin/`](bindings/kotlin/), [`bindings/swift/`](bindings/swift/), and
 [`bindings/flutter/`](bindings/flutter/).
 
-**🐳 Containers and agents:** the CLI 0.10.0 is public on
-[GHCR](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/pkgs/container/qrcode-ai-scanner)
+**🐳 Containers and agents:** retained CLI 0.10.0 distributions are listed on
+[GHCR](https://github.com/orgs/supernovae-st/packages/container/package/qrcode-ai-scanner)
 and [Docker Hub](https://hub.docker.com/r/thibautmelen/qrcode-ai-scanner).
 The MCP adapter and portable skill 0.1.0 are in the
-[agents release](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/releases/tag/agents-v0.1.0),
+[agents release](https://github.com/supernovae-st/qrcode-barcode-scanner/releases/tag/agents-v0.1.0),
 and the skill is also on [ClawHub](https://clawhub.ai/thibautmelen/skills/qr-image-scanner).
 Use the [installation guide](distribution/README.md) for exact downloads,
 immutable digests, licenses and qualified clients.
 
-## Why
+## QR quality and recovery
 
-AI-generated and artistic QR codes break standard scanners: damaged finder
-patterns, low module contrast, art texture over data modules. This library
-is built specifically for them · and it doesn't just say *"decoded"*, it
-tells you **how much margin** the code has before it stops scanning in the
-real world.
+A QR code can decode once and still fail when printed smaller, photographed at
+an angle or placed on a different background. This engine reports measured
+stress tests and actionable hints so an application can distinguish a successful
+read from a design that needs improvement.
 
-Seven things this library ships together:
+These are software diagnostics, not a certified hardware-verifier result or a
+guarantee that every camera will scan the design. Unmeasured parameters remain
+absent. If a time budget interrupts the judgment, the report has no partial score.
+
+<details>
+<summary><strong>Technical details: decoding, quality measurements and exact content</strong></summary>
+
+Seven capabilities share the same engine and versioned report:
 
 1. **A deterministic multi-engine decode ladder** tuned on artistic
    corpora (rxing + rqrr, curated preprocessing rungs · no RNG in the
@@ -151,6 +194,8 @@ exact RS error counts) · see [docs/SCORING.md](docs/SCORING.md) for the
 parameter mapping and the honest line between software diagnostics and
 certified hardware verification.
 
+</details>
+
 ## Quick start
 
 ```rust
@@ -161,7 +206,7 @@ let report = scanner.scan(ImageInput::encoded(&image_bytes))?;
 
 match report.detections.first() {
     Some(d) => println!("{} (score {:?})", d.content.text, report.score),
-    None => println!("no QR found"), // a valid outcome · not an error
+    None => println!("no code found"), // a valid outcome · not an error
 }
 for hint in &report.hints {
     println!("hint: {hint:?}"); // feed these back to your generator
@@ -289,9 +334,9 @@ as exploratory reporters.
 
 ## Documentation & spec
 
-> **Pourquoi ce scanner ?** Avant/après vs `qr-scanner-wechat` + vs les
-> APIs cloud (local · instantané · catégorisé) :
-> [docs/comparison.mdx](docs/comparison.mdx) · agents : [AGENTS.md](AGENTS.md).
+Start with the [runtime guide](docs/guides/choosing-a-surface.mdx),
+[example gallery](docs/concepts/gallery.mdx) or
+[comparison notes](docs/comparison.mdx). Coding agents: [AGENTS.md](AGENTS.md).
 
 - **[`spec/`](spec/)** · the NORMATIVE contract: wire format, errors,
   score, payloads, hints, pipeline + a JSON Schema and golden examples
@@ -304,7 +349,8 @@ as exploratory reporters.
 
 ## Workspace
 
-Every surface shares the workspace version (`Cargo.toml`).
+Source manifests share the workspace version (`Cargo.toml`). Published versions
+can differ by registry; a source version does not establish a successful release.
 
 | Crate / package | Published to |
 |---|---|
@@ -315,6 +361,12 @@ Every surface shares the workspace version (`Cargo.toml`).
 | [`qrcode-ai-scanner-py`](crates/qrcode-ai-scanner-py) (`qrcode-ai-scanner` on PyPI, PyO3 abi3) | PyPI |
 
 ## Contributing & security
+
+Develop this scanner in
+[`supernovae-st/qrcode-barcode-scanner`](https://github.com/supernovae-st/qrcode-barcode-scanner).
+It is one multiformat engine with a family of runtime bindings. The QR Code AI
+application and its creation engine have separate sources and release processes.
+See the [source and package contract](SOURCE-AND-EXTRACTION.md).
 
 Contributions welcome · see [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Found a vulnerability? Please report it

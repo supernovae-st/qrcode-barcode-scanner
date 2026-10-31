@@ -77,12 +77,12 @@
       "anchors": [
         {
           "anchor": "Normative spec",
-          "href": "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/tree/main/spec",
+          "href": "https://github.com/supernovae-st/qrcode-barcode-scanner/tree/main/spec",
           "icon": "scale-balanced"
         },
         {
           "anchor": "GitHub",
-          "href": "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner",
+          "href": "https://github.com/supernovae-st/qrcode-barcode-scanner",
           "icon": "github"
         },
         {
@@ -95,7 +95,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner",
+      "github": "https://github.com/supernovae-st/qrcode-barcode-scanner",
       "website": "https://qrcode-ai.com"
     }
   }

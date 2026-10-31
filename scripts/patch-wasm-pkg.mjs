@@ -11,7 +11,7 @@ pkg.description =
 pkg.license = "AGPL-3.0-or-later";
 pkg.repository = {
   type: "git",
-  url: "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner",
+  url: "https://github.com/supernovae-st/qrcode-barcode-scanner",
 };
 pkg.keywords = ["qrcode", "qr", "scanner", "wasm", "browser", "artistic-qr", "ai-qr"];
 // wasm-pack regenerates package.json each build — re-add the shared types

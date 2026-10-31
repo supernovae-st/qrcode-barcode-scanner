@@ -45,7 +45,7 @@ let package = Package(
         //
         // .binaryTarget(
         //     name: "QrcodeAiScannerFFI",
-        //     url: "https://github.com/supernovae-st/qrcode-ai-scanner/releases/download/v<VERSION>/QrcodeAiScannerFFI.xcframework.zip",
+        //     url: "https://github.com/supernovae-st/qrcode-barcode-scanner/releases/download/v<VERSION>/QrcodeAiScannerFFI.xcframework.zip",
         //     checksum: "<CHECKSUM>"
         // ),
     ]

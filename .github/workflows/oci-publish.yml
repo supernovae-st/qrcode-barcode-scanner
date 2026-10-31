@@ -42,7 +42,7 @@ jobs:
         with:
           artifact-ids: ${{ matrix.artifact_id }}
           run-id: "38583785567"
-          repository: supernovae-st/qrai-qrcode-barcode-scanner
+          repository: supernovae-st/qrcode-barcode-scanner
           digest-mismatch: error
           github-token: ${{ github.token }}
           path: qualified/${{ matrix.architecture }}
@@ -83,7 +83,7 @@ jobs:
         with:
           artifact-ids: "11903554096"
           run-id: "38583785567"
-          repository: supernovae-st/qrai-qrcode-barcode-scanner
+          repository: supernovae-st/qrcode-barcode-scanner
           digest-mismatch: error
           github-token: ${{ github.token }}
           path: qualified/amd64
@@ -91,7 +91,7 @@ jobs:
         with:
           artifact-ids: "11904033809"
           run-id: "38583785567"
-          repository: supernovae-st/qrai-qrcode-barcode-scanner
+          repository: supernovae-st/qrcode-barcode-scanner
           digest-mismatch: error
           github-token: ${{ github.token }}
           path: qualified/arm64

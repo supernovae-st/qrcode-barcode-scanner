@@ -1,13 +1,16 @@
 ---
-description: qrai-qrcode-barcode-scanner upstream laws — additive wire, determinism, the judge role
+description: qrcode-barcode-scanner laws — additive wire, determinism, the judge role
 alwaysApply: true
 ---
 
 # Scanner laws (full brief: AGENTS.md)
 
-- Private Rust upstream; improve here, then extract two autonomous engines
-  (`qr-code-scanner` and `barcode-scanner`) with independent releases.
-  See SOURCE-AND-EXTRACTION.md. Existing package identities remain historical.
+- One multiformat scan engine, one package family: QR Code & Barcode Scanner.
+  Source: `supernovae-st/qrcode-barcode-scanner`; existing install names retain
+  `qrcode-ai-scanner`. No QR/barcode engine extraction or alias/wrapper packages.
+  QR Code AI and its creation engine have separate release processes; a scanner
+  binding is not an app. See SOURCE-AND-EXTRACTION.md. Preserve dated receipts
+  and component licenses.
 - Existing public package contracts: the `ScanReport` wire is
   additive-only forever; score semantic changes bump `score_contract`;
   public enums stay `#[non_exhaustive]`.

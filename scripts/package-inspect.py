@@ -579,7 +579,7 @@ def inspect_npm(host: Host, path: pathlib.Path, notes=()) -> Artifact:
               f"package.json version {pkg.get('version')}")
     art.check(f"license = {SPDX}", pkg.get("license") == SPDX, f"{pkg.get('license')}")
     art.check("repository is this repo (trusted publishing matches on it)",
-              "github.com/supernovae-st/qrai-qrcode-barcode-scanner" in json.dumps(pkg.get("repository", "")),
+              "github.com/supernovae-st/qrcode-barcode-scanner" in json.dumps(pkg.get("repository", "")),
               json.dumps(pkg.get("repository")))
     check_license(art, files.get("LICENSE"), "package/LICENSE")
     check_stray(art, files)
@@ -1499,7 +1499,7 @@ PLANTED = (
     "plans/roadmap.md", "target/release/build.log", "node_modules/x/index.js", ".git/config", ".DS_Store",
     "lib.rs~",
 )
-REPO_URL = {"type": "git", "url": "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner"}
+REPO_URL = {"type": "git", "url": "https://github.com/supernovae-st/qrcode-barcode-scanner"}
 
 
 def _tar(path: pathlib.Path, top: str, files: dict, members=None) -> pathlib.Path:

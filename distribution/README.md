@@ -1,15 +1,13 @@
 # Use the scanner with Docker, MCP or Agent Skills
 
-> Source access update · 30 October 2026: the upstream repository is now private
-> and named `supernovae-st/qrai-qrcode-barcode-scanner`. The following distribution
-> receipts and URLs describe historical combined-scanner artifacts. GitHub source
-> and release downloads now require repository access. They do not establish
-> delivery of the two extracted engines; see [the current contract](../SOURCE-AND-EXTRACTION.md).
-
+> The source repository is now `supernovae-st/qrcode-barcode-scanner`.
+> Installation names, release assets, versions and hashes below remain unchanged.
+> This rename does not publish a new scanner, container, MCP adapter or skill.
+> See the [source and package contract](../SOURCE-AND-EXTRACTION.md).
 
 The scanner engine is **0.10.0**. The local MCP adapter and portable
 `qr-image-scanner` skill are **0.1.0**, distributed in the
-[agents-v0.1.0 release](https://github.com/supernovae-st/qrcode-ai-scanner/releases/tag/agents-v0.1.0).
+[agents-v0.1.0 release](https://github.com/supernovae-st/qrcode-barcode-scanner/releases/tag/agents-v0.1.0).
 Choose the interface your application or agent already supports.
 
 **Shipping:** the GHCR and Docker Hub CLI images, GitHub MCP/skill release assets
@@ -21,10 +19,10 @@ at 0.10.0; install the adapter using its GitHub archive URL below.
 
 | Download | SHA256 |
 | --- | --- |
-| [MCP adapter archive](https://github.com/supernovae-st/qrcode-ai-scanner/releases/download/agents-v0.1.0/supernovae-st-qrcode-ai-scanner-mcp-0.1.0.tgz) | `c97cc6565d3b5248552c0895cde31d4b204b313fcd9d89c3464fe0fd745556e1` |
-| [Complete skill ZIP](https://github.com/supernovae-st/qrcode-ai-scanner/releases/download/agents-v0.1.0/qr-image-scanner-0.1.0.zip) | `07740a0c553eef509074f04911daef2dd203e95067600936da05214c03a50942` |
+| [MCP adapter archive](https://github.com/supernovae-st/qrcode-barcode-scanner/releases/download/agents-v0.1.0/supernovae-st-qrcode-ai-scanner-mcp-0.1.0.tgz) | `c97cc6565d3b5248552c0895cde31d4b204b313fcd9d89c3464fe0fd745556e1` |
+| [Complete skill ZIP](https://github.com/supernovae-st/qrcode-barcode-scanner/releases/download/agents-v0.1.0/qr-image-scanner-0.1.0.zip) | `07740a0c553eef509074f04911daef2dd203e95067600936da05214c03a50942` |
 
-The release also supplies [SHA256SUMS](https://github.com/supernovae-st/qrcode-ai-scanner/releases/download/agents-v0.1.0/SHA256SUMS).
+The release also supplies [SHA256SUMS](https://github.com/supernovae-st/qrcode-barcode-scanner/releases/download/agents-v0.1.0/SHA256SUMS).
 These exact files are publicly downloadable without an account.
 
 ## MCP: install the public archive
@@ -34,7 +32,7 @@ GitHub archive directly into a new project directory:
 
 ```sh
 npm install --prefix ./qrscan-mcp-install --ignore-scripts --save-exact --no-audit --no-fund \
-  https://github.com/supernovae-st/qrcode-ai-scanner/releases/download/agents-v0.1.0/supernovae-st-qrcode-ai-scanner-mcp-0.1.0.tgz
+  https://github.com/supernovae-st/qrcode-barcode-scanner/releases/download/agents-v0.1.0/supernovae-st-qrcode-ai-scanner-mcp-0.1.0.tgz
 ```
 
 The adapter installs the exact native engine 0.10.0 dependency. Generate a
@@ -58,7 +56,7 @@ report schema; `qrscan://limits` exposes the active limits. The default image
 limits are 8 MiB decoded bytes, 4096 pixels per side and 16 million pixels,
 with at most two active scans. Tool errors carry `isError: true`; a valid empty
 detection is a successful report. The package includes its AGPL license and
-[adapter documentation](https://github.com/supernovae-st/qrcode-ai-scanner/blob/agents-v0.1.0/integrations/mcp/README.md).
+[adapter documentation](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/agents-v0.1.0/integrations/mcp/README.md).
 
 ## Skills: install from ClawHub or use the complete directory
 
@@ -107,7 +105,7 @@ engine or exempt a consumer from the engine's terms.
 
 ## Docker: run the local CLI
 
-The public [GHCR image](https://github.com/supernovae-st/qrcode-ai-scanner/pkgs/container/qrcode-ai-scanner)
+The public [GHCR image](https://github.com/orgs/supernovae-st/packages/container/package/qrcode-ai-scanner)
 and [Docker Hub mirror](https://hub.docker.com/r/thibautmelen/qrcode-ai-scanner)
 have the same qualified multi-architecture index, manifests, configs and layers:
 

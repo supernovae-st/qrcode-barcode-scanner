@@ -2,7 +2,7 @@
 
 QR decoding **+ scannability scoring** for artistic / AI-generated QR codes —
 the codes that break standard scanners. The native Rust core of
-[`qrcode-ai-scanner`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner),
+[`qrcode-ai-scanner`](https://github.com/supernovae-st/qrcode-barcode-scanner),
 bound to Flutter via [flutter_rust_bridge](https://pub.dev/packages/flutter_rust_bridge).
 Returns the same versioned `ScanReport` as the Python / Node / WASM / Kotlin /
 Swift bindings (one serde wire contract).
@@ -110,6 +110,6 @@ and trusted-publisher setup remain operator steps in `RELEASING.md`.
 ## License
 
 Dual-licensed **AGPL-3.0-or-later OR commercial** — see the repo-root
-[`LICENSING.md`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/LICENSING.md).
+[`LICENSING.md`](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/main/LICENSING.md).
 A closed-source app on the App Store / Play Store links the AGPL Rust core and
 therefore needs the **commercial** license: `studio.supernovae@gmail.com`.

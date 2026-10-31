@@ -79,7 +79,7 @@ publishing {
             pom {
                 name.set("qrcode-ai-scanner (Kotlin/Android)")
                 description.set("Kotlin/Android bindings for qrcode-ai-scanner via UniFFI.")
-                url.set("https://github.com/supernovae-st/qrcode-ai-scanner")
+                url.set("https://github.com/supernovae-st/qrcode-barcode-scanner")
                 licenses {
                     // Dual-licensed: AGPL-3.0-or-later OR commercial (LICENSING.md).
                     // The manifest SPDX stays AGPL-3.0-or-later per operator decision.

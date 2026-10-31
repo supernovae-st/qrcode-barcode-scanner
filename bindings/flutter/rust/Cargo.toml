@@ -17,7 +17,7 @@ version = "0.10.0"
 edition = "2021"
 rust-version = "1.88"
 license = "AGPL-3.0-or-later"
-repository = "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner"
+repository = "https://github.com/supernovae-st/qrcode-barcode-scanner"
 description = "Flutter/Dart bindings for qrcode-ai-scanner — QR decoding + scannability scoring for artistic / AI-generated QR codes."
 publish = false
 

@@ -86,7 +86,7 @@ not proof of a *miscorrection* (a decode that looks valid but is wrong). The
 The public zxing `qrcode-2/13.png` observation reads "photography" while
 the pinned upstream text reads "photograph". Two external decoder families
 confirm the corrected text; the
-[hash-pinned truth amendment](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/corpus-truth-amendments.md)
+[hash-pinned truth amendment](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/main/spec/corpus-truth-amendments.md)
 preserves the original bytes and provenance. This is a corpus-label correction,
 not a proven miscorrection example or a new scanner acceptance rule.
 
@@ -98,7 +98,7 @@ above ISO's value: for an errors-only decode at the acceptance limit,
 where ISO reads 0, it reads 0.059 to 0.43, caps the score at 47 to 91
 instead of 40 and raises no `low_correction_margin` — there, no hint is no
 proof. The table:
-[`spec/04-score.md`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/04-score.md)
+[`spec/04-score.md`](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/main/spec/04-score.md)
 § Synthetic UEC.
 </Note>
 
@@ -140,4 +140,4 @@ GS1 conformance is different — pure syntax, fully software-checkable:
 see [GS1](/concepts/gs1).
 
 Full normative tables (weights, ramps, bands, caps):
-[`spec/04-score.md`](https://github.com/supernovae-st/qrai-qrcode-barcode-scanner/blob/main/spec/04-score.md).
+[`spec/04-score.md`](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/main/spec/04-score.md).

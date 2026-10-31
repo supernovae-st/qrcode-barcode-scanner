@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.description      = <<-DESC
 Native Rust core (via flutter_rust_bridge) for QR decoding + scannability scoring.
                        DESC
-  s.homepage         = 'https://github.com/supernovae-st/qrcode-ai-scanner'
+  s.homepage         = 'https://github.com/supernovae-st/qrcode-barcode-scanner'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'SuperNovae' => 'studio.supernovae@gmail.com' }
   s.module_name      = 'qrcode_ai_scanner'

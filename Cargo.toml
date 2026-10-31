@@ -20,7 +20,7 @@ version = "0.10.0"
 edition = "2024"
 rust-version = "1.88"
 license = "AGPL-3.0-or-later"
-repository = "https://github.com/supernovae-st/qrai-qrcode-barcode-scanner"
+repository = "https://github.com/supernovae-st/qrcode-barcode-scanner"
 authors = [
   "Thibaut MÉLEN <thibaut@supernovae.studio>",
   "SuperNovae <contact@supernovae.studio>",
