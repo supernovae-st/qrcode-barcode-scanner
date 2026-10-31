@@ -121,6 +121,9 @@ pub(crate) struct Read {
     pub(crate) location: Option<[Point; 4]>,
     /// Every distinct symbol it was read at (at most [`MAX_PLACES`]).
     pub(crate) places: Vec<[Point; 4]>,
+    /// Actual outer-corner observations, independent of published geometry.
+    /// Three-finder reconstructions never enter this bounded collection.
+    pub(crate) matrix_regions: Vec<[Point; 4]>,
     /// What it measured.
     pub(crate) geometry: Geometry,
     /// The ranks of the reads its location and geometry parts come from.
@@ -167,6 +170,7 @@ impl Read {
             last_attempt: rank.attempt,
             location: None,
             places: Vec::new(),
+            matrix_regions: Vec::new(),
             geometry: Geometry::default(),
             sources: Sources {
                 location: rank,
@@ -214,6 +218,11 @@ impl Read {
         for place in other.places {
             if self.places.len() < MAX_PLACES && !recorded(&self.places, place) {
                 self.places.push(place);
+            }
+        }
+        for region in other.matrix_regions {
+            if self.matrix_regions.len() < MAX_PLACES && !recorded(&self.matrix_regions, region) {
+                self.matrix_regions.push(region);
             }
         }
         let take = |own: bool, own_rank: Rank, theirs: bool, their_rank: Rank| {
@@ -569,6 +578,25 @@ impl ReadStore {
     /// Whether the walk publishes something — what the S5 trigger asks.
     pub(crate) fn found(&self) -> bool {
         !self.reconcile().is_empty()
+    }
+
+    /// Measured regions of admitted QR-family engine reads, in original
+    /// image space. Candidate-only grids and refused/held reads never mask
+    /// another family's search; duplicate payloads retain distinct places.
+    #[cfg(feature = "engine-rxing")]
+    pub(crate) fn qr_regions(&self) -> Vec<[Point; 4]> {
+        let mut regions = Vec::new();
+        for read in self.accepted() {
+            if !read.by_engine() || !read.symbology.is_qr_family() {
+                continue;
+            }
+            for region in read.matrix_regions {
+                if regions.len() < MAX_DETECTIONS * MAX_PLACES && !recorded(&regions, region) {
+                    regions.push(region);
+                }
+            }
+        }
+        regions
     }
 
     /// Whether a QR Code read the scanner has not parsed stands — what
@@ -1096,6 +1124,29 @@ mod tests {
             read.segments = Segments::Observed(Vec::new());
         }
         read
+    }
+
+    #[test]
+    #[cfg(feature = "engine-rxing")]
+    fn qr_exclusion_regions_require_admitted_measured_engine_reads() {
+        let mut store = ReadStore::default();
+        for (n, raw, engine, x) in [
+            (0, b"same".as_slice(), X, 10.0),
+            (1, b"same".as_slice(), X, 210.0),
+            (2, b"candidate".as_slice(), C, 410.0),
+            (3, b"refused".as_slice(), X, 610.0),
+        ] {
+            let mut hit = read(n, raw, NoEci, engine, Some(x));
+            hit.matrix_regions.push(square_at(x));
+            if raw == b"refused" {
+                hit.margin = Margin::Known(-1);
+            }
+            store.collect(hit);
+        }
+        // A place reconstructed from finder centres has no measured outer
+        // region and must not become an exclusion polygon.
+        store.collect(read(4, b"inferred", NoEci, X, Some(810.0)));
+        assert_eq!(store.qr_regions(), [square_at(10.0), square_at(210.0)]);
     }
 
     /// The read, parsed by the scanner.

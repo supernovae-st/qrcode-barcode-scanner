@@ -79,6 +79,10 @@ pub(crate) struct RawDetection {
     /// published, they keep the reads of different symbols apart: rxing's
     /// QR-family result points, rqrr's grid bounds. Attempt space here.
     pub location: Option<[Point; 4]>,
+    /// Measured outer corners of a decoded matrix symbol, in attempt space.
+    /// Internal exclusion evidence only: never inferred from three finder
+    /// centres and never substituted for published/scored geometry.
+    pub matrix_region: Option<[Point; 4]>,
     /// What the re-read needs, when it may run for this read: a port read
     /// whose modifier leaves its declarations unverified, an rqrr read whose
     /// grid decided nothing. Attempt space.
@@ -193,6 +197,7 @@ impl RawDetection {
             segments: Segments::NotObserved,
             engine_reading: EngineReading::None,
             location: None,
+            matrix_region: None,
             locate: None,
             needs_confirmation: false,
             margin: crate::rescue::Margin::Unknown,

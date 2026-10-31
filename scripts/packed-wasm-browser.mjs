@@ -44,6 +44,8 @@ const normalize = value => Array.isArray(value) ? value.map(normalize) : value &
 const passed = [], runs = [];
 const mixedBytes = [...readFileSync(join(root, 'fixtures/symbology/mixed-code128-qr.png'))];
 const linearCases = [
+  ['symbology/code39-short-j.png', [['code39', 'J']]],
+  ['artistic/github-orb-code39-regression.png', [['qr_code', 'https://qrc-ai.com/QVR9a']]],
   ['symbology/code93-bwipp-checked.png', [['code93', 'SCANNER-93']]],
   ['symbology/databar-small-regression.png', [['data_bar', '09506000134352']]],
   ['symbology/databar-expanded-bwipp-regression.png', [['data_bar_expanded', '(01)09506000134352(10)DEMO']]],

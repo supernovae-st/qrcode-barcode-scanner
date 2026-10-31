@@ -18,6 +18,11 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
   decoding and guarded DataBar Expanded recovery. The consolidated rxing 0.9.3
   adapter retains the local Expanded reader with its Apache-2.0 notices, valid
   positive fixtures and illegal finder-sequence negative vector.
+- The complementary linear pass masks only measured regions of already admitted
+  QR symbols on its cloned plane. This avoids the false Code 39 `J` read from an
+  artistic QR's module texture while retaining genuine Code 39 symbols,
+  including a one-character `J` alone and beside a QR. Ordinary Code 39 admission
+  and scoring on the original image remain unchanged.
 
 ### Added
 

@@ -130,12 +130,12 @@
       {
         "stage": "direct",
         "transforms_tried": 1,
-        "ms": 4.332334,
+        "ms": 4.624167,
         "detections_found": 2
       }
     ],
     "engine_panics": 0,
-    "total_ms": 4.352957999999999,
+    "total_ms": 4.644792,
     "budget_exhausted": false
   },
   "versions": {

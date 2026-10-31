@@ -807,6 +807,7 @@ impl Run<'_> {
         let side = dims.0.max(dims.1);
         read.scales = Some((side, side));
         read.geometry = geometry;
+        read.matrix_regions.extend(hit.matrix_region.map(place));
         (read, hit.locate)
     }
 
@@ -1299,6 +1300,58 @@ fn rescaled(mut corners: [Point; 4], from: (u32, u32), to: (u32, u32)) -> [Point
     corners
 }
 
+/// The linear-only completion searches outside already decoded QR symbols.
+/// Preserve every pixel outside the actual convex footprint: its bounding
+/// rectangle could also contain a genuine adjacent barcode. This plane is
+/// never used to measure or score the original symbols.
+#[cfg(feature = "engine-rxing")]
+#[expect(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "finite pixel bounds clamped to the validated, engine-capped image"
+)]
+fn exclude_matrix_regions(img: &LumaImage, regions: &[[Point; 4]]) -> LumaImage {
+    let mut data = img.data().to_vec();
+    for region in regions {
+        if !region.iter().all(|p| p.x.is_finite() && p.y.is_finite()) {
+            continue;
+        }
+        let turns: [f32; 4] = std::array::from_fn(|i| {
+            let (a, b, c) = (region[i], region[(i + 1) % 4], region[(i + 2) % 4]);
+            (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
+        });
+        if !turns.iter().all(|v| v.is_finite() && *v > 0.0)
+            && !turns.iter().all(|v| v.is_finite() && *v < 0.0)
+        {
+            continue;
+        }
+        let bounds = |axis: fn(&Point) -> f32, limit: u32| {
+            let lo = region.iter().map(axis).fold(f32::INFINITY, f32::min);
+            let hi = region.iter().map(axis).fold(f32::NEG_INFINITY, f32::max);
+            (
+                lo.floor().clamp(0.0, limit as f32) as u32,
+                hi.ceil().clamp(0.0, limit as f32) as u32,
+            )
+        };
+        let (left, right) = bounds(|p| p.x, img.width());
+        let (top, bottom) = bounds(|p| p.y, img.height());
+        for y in top..bottom {
+            for x in left..right {
+                let (px, py) = (x as f32 + 0.5, y as f32 + 0.5);
+                let sides: [f32; 4] = std::array::from_fn(|i| {
+                    let (a, b) = (region[i], region[(i + 1) % 4]);
+                    (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x)
+                });
+                if sides.iter().all(|v| *v >= 0.0) || sides.iter().all(|v| *v <= 0.0) {
+                    data[(y * img.width() + x) as usize] = 255;
+                }
+            }
+        }
+    }
+    LumaImage::new(data, img.width(), img.height())
+}
+
 /// Execute the ladder over normalized planes. `deadline` is the WHOLE-scan
 /// wall-clock bound, shared with the scoring stage (computed by the caller).
 pub(crate) fn run(
@@ -1363,9 +1416,18 @@ pub(crate) fn run_seeded(
                         .iter()
                         .any(|d| d.symbology.is_qr_family())
                 {
+                    let regions = run.store.qr_regions();
+                    let original = run.orig;
                     let _ = run.stage(
                         "direct",
-                        vec![Attempt::plain(|| luma.clone())],
+                        vec![Attempt::plain(move || {
+                            let work = (luma.width(), luma.height());
+                            let regions: Vec<_> = regions
+                                .iter()
+                                .map(|&region| rescaled(region, original, work))
+                                .collect();
+                            exclude_matrix_regions(luma, &regions)
+                        })],
                         engine::FormatFilter::Linear,
                         &mut stages,
                     )?;
@@ -2123,6 +2185,52 @@ mod ladder_mutant_kills {
 
     fn fresh_run(cancel: &CancelToken, orig: (u32, u32)) -> Run<'_> {
         Run::new(cancel, None, orig, Seed::default())
+    }
+
+    #[test]
+    #[cfg(feature = "engine-rxing")]
+    fn matrix_exclusion_preserves_the_pixels_outside_a_rotated_quad() {
+        let original = LumaImage::new(vec![17; 25], 5, 5);
+        let diamond = [
+            Point { x: 2.5, y: 0.5 },
+            Point { x: 4.5, y: 2.5 },
+            Point { x: 2.5, y: 4.5 },
+            Point { x: 0.5, y: 2.5 },
+        ];
+        let expected = [
+            17, 17, 255, 17, 17, 17, 255, 255, 255, 17, 255, 255, 255, 255, 255, 17, 255, 255, 255,
+            17, 17, 17, 255, 17, 17,
+        ];
+        let mut reversed = diamond;
+        reversed.reverse();
+        for region in [diamond, reversed] {
+            assert_eq!(
+                exclude_matrix_regions(&original, &[region]).data(),
+                expected
+            );
+        }
+        assert_eq!(original.data(), [17; 25]);
+    }
+
+    #[test]
+    #[cfg(feature = "engine-rxing")]
+    fn invalid_matrix_regions_never_exclude_pixels() {
+        let original = LumaImage::new(vec![17; 25], 5, 5);
+        for region in [
+            [Point { x: 1.0, y: 1.0 }; 4],
+            [
+                Point { x: 0.0, y: 0.0 },
+                Point { x: 4.0, y: 4.0 },
+                Point { x: 4.0, y: 0.0 },
+                Point { x: 0.0, y: 4.0 },
+            ],
+            [Point {
+                x: f32::NAN,
+                y: 1.0,
+            }; 4],
+        ] {
+            assert_eq!(exclude_matrix_regions(&original, &[region]), original);
+        }
     }
 
     fn qr_png(content: &str, module: u32) -> Vec<u8> {

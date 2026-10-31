@@ -191,18 +191,18 @@
       {
         "stage": "pyramid",
         "transforms_tried": 1,
-        "ms": 8.234333999999999,
+        "ms": 15.253708,
         "detections_found": 2
       },
       {
         "stage": "direct",
         "transforms_tried": 1,
-        "ms": 33.096000000000004,
+        "ms": 35.091167,
         "detections_found": 0
       }
     ],
     "engine_panics": 0,
-    "total_ms": 41.421458,
+    "total_ms": 50.482708,
     "budget_exhausted": false
   },
   "versions": {

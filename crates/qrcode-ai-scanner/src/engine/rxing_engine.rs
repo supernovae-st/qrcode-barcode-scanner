@@ -267,6 +267,7 @@ fn observe(result: &rxing::RXingResult) -> Option<RawDetection> {
         segments: Segments::NotObserved,
         engine_reading: EngineReading::None,
         location: None,
+        matrix_region: None,
         locate: None,
         needs_confirmation: false,
         margin: Margin::Unknown,
@@ -294,6 +295,9 @@ fn observe(result: &rxing::RXingResult) -> Option<RawDetection> {
         Reader::Port => [points[0], points[1], points[3], points[2]],
         Reader::Codewords(_) => points,
     });
+    if reader == Reader::Port && result.getPoints().len() == 4 {
+        detection.matrix_region = detection.location;
+    }
     match reader {
         Reader::Port => {
             let raw = result.getRawBytes();

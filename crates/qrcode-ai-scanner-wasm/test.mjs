@@ -29,6 +29,11 @@ for (const profile of ["fast", "frame", "full"]) {
     [["code128", "STOCK-4827"], ["qr_code", "https://qrc-ai.com/76xMa"]]);
   const barcode = mixed.detections.find(d => d.symbology === "code128");
   assert.equal(barcode.meta.version, null, "linear read must not receive QR metadata");
+  const shortCode39 = scan_image(fixture("symbology/code39-short-j.png"), profile, undefined, undefined, 0);
+  assert.deepEqual(shortCode39.detections.map(d => [d.symbology, d.content.text]), [["code39", "J"]]);
+  const artistic = scan_image(fixture("artistic/github-orb-code39-regression.png"), profile, undefined, undefined, 0);
+  assert.deepEqual(artistic.detections.map(d => [d.symbology, d.content.text]), [["qr_code", "https://qrc-ai.com/QVR9a"]],
+    "QR texture must not become a false Code39 J");
 }
 console.log(`PASS ${process.env.WASM_VARIANT ?? 'simd'} mixed QR + Code128: fast, frame, full`);
 
