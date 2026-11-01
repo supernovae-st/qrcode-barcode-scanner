@@ -6,7 +6,7 @@ alwaysApply: true
 # Scanner laws (full brief: AGENTS.md)
 
 - One multiformat scan engine, one package family: QR Code & Barcode Scanner.
-  Source: `supernovae-st/qrcode-barcode-scanner`; existing install names retain
+  Source: `qrcode-ai-com/qrcode-barcode-scanner`; existing install names retain
   `qrcode-ai-scanner`. No QR/barcode engine extraction or alias/wrapper packages.
   QR Code AI and its creation engine have separate release processes; a scanner
   binding is not an app. See SOURCE-AND-EXTRACTION.md. Preserve dated receipts
@@ -14,19 +14,23 @@ alwaysApply: true
 - Existing public package contracts: the `ScanReport` wire is
   additive-only forever; score semantic changes bump `score_contract`;
   public enums stay `#[non_exhaustive]`.
-- "No QR found" is `Ok` with empty detections — `Err` = `QRS-001..005`
+- No supported code found is `Ok` with empty detections — `Err` = `QRS-001..005`
   only (stable registry, never reused).
-- Determinism: `budget_ms: None` must stay strictly reproducible —
-  no RNG, no clocks in the scan path.
+- Determinism follows AGENTS.md/spec: unbounded attempts are reproducible,
+  with the documented upstream PDF417 confidence-tie exception. Introduce no
+  hidden RNG or wall-clock dependency; time-budget cuts retain their flags.
 - Zero `unwrap`/`expect`/`panic!` in production (lint-denied); engine
   panics degrade to no-score at the boundary, never a crash.
 - Decoded text is attacker-controlled — strip terminal controls on any
   human echo; colour only via the CLI's term.rs seam.
-- Gates: `cargo nextest run --workspace` + doc tests + clippy
-  all-features -D warnings + `scripts/check-type-parity.py` +
-  `cargo +1.88 check --locked` + `xtask corpus-report`.
-- Release = bump workspace + `xtask sync-version` (9 surfaces) + tag;
-  RELEASING.md is the ritual. Downstream repos pin this version as
+- Gates: use RELEASING.md's Local development checks with its exact compiler
+  selector, `--locked`, formatting check, tests/doc tests, strict Clippy,
+  type parity and separately tested MSRV. Core/dependency changes affect
+  root plus Python, UniFFI, Flutter Rust and fuzz lock roots. Workspace
+  tests and locked metadata do not replace installed artifact consumers.
+- Release qualification follows RELEASING.md: source/version synchronization,
+  exact artifacts, applicable consumers, CI and publisher admission before tag.
+  Downstream repos pin this version as
   "the judge" — score honesty is a contract.
 - Commits: `type(scope): lowercase` + `Co-Authored-By: Nika 🦋
   <nika@supernovae.studio>`.

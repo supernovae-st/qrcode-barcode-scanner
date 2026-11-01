@@ -52,6 +52,8 @@ the **commercial** license (it links the AGPL core) — `studio.supernovae@gmail
 
 ## Errors
 
-`scan` throws on invalid input / a bad profile; the message carries the
-`[QRS-xxx]` wire code ([catalog](/api/errors)). The report shape is the
-[one contract](/api/report).
+A scan fault throws `ScanBindingException.ScanFailed` (Kotlin) or
+`ScanBindingError.ScanFailed` (Swift); its message carries the `[QRS-xxx]`
+wire code ([catalog](/api/errors)). An unknown name or a palette above 32
+colors throws its own case (`UnknownProfile`, `PaletteTooLarge`, …) without
+a code. The report shape is the [one contract](/api/report).

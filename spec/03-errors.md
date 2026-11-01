@@ -14,15 +14,31 @@ code; the cross-surface match contract is the regex `QRS-\d{3}`
 | `QRS-003` | PixelLimit | total pixels exceed `max_pixels` | decompression bomb, huge photo |
 | `QRS-004` | BufferMismatch | raw buffer length ≠ expected for (w,h,format) | binding misuse (`rgba8`/`luma8` paths) |
 | `QRS-005` | Cancelled | the `CancelToken` fired | caller-initiated cancellation |
+| `QRS-006` | InvalidOption | an option value outside its domain ([02-profiles.md § Option domains](02-profiles.md#option-domains-validated-before-the-input)), checked before the input is read | a zero size cap, a budget above 4 294 967 295 ms, a JavaScript `NaN` or fractional cap |
 
 ## Per-surface mapping
 
 | Surface | Shape | How to match |
 |---|---|---|
 | Rust | `Err(ScanError)` — `.code()` returns `"QRS-xxx"`, `thiserror` + `miette` diagnostics | `match err.code() { "QRS-003" => … }` |
-| CLI stderr | `error: <message> [QRS-xxx]` + exit code 2 | match the code, not the prose |
-| Node | rejected Promise, `Error.message` ends with `[QRS-xxx]`; a pre-aborted signal rejects with an `AbortError` DOMException | `e.message.match(/QRS-\d{3}/)` |
+| CLI stderr | `✖ <message> [QRS-xxx]` + exit code 2 (the glyph and its color are presentation) | match the code, not the prose |
+| Node | rejected Promise (`scanSync`: thrown `Error`), `Error.message` ends with `[QRS-xxx]`; an aborted signal rejects a queued scan with an `AbortError` DOMException | `e.message.match(/QRS-\d{3}/)` |
 | WASM | thrown `JsError`, message ends with `[QRS-xxx]` | same match |
+| Python | raised `ValueError`, message ends with `[QRS-xxx]` | `re.search(r"QRS-\d{3}", str(e))` |
+| Kotlin / Swift | thrown `ScanBindingException.ScanFailed` (Kotlin) · `ScanBindingError.ScanFailed` (Swift), its message carries `[QRS-xxx]` | same match |
+| Flutter | the thrown error value, a `String` ending with `[QRS-xxx]` | `RegExp(r'QRS-\d{3}').firstMatch('$e')` |
+
+Only a scan fault carries a code. A binding's own argument error has none:
+an unknown name (a profile, stress axis, score check, alpha background,
+palette color or preset), a palette list above 32 colors, or a value its
+integer type cannot hold. That is Node's and WASM's thrown error, Python's
+`ValueError` (`OverflowError`/`TypeError` for a conversion), Flutter's thrown
+`String`, and Kotlin/Swift's own case (`UnknownProfile`, `PaletteTooLarge`, …).
+Match it by its type or case, never by a code it does not have.
+
+`QRS-005` comes only from Rust's `scan_cancellable`. Node's `AbortSignal`
+rejects a queued scan with an `AbortError` and never interrupts a running
+one; the other bindings expose no cancellation.
 
 ## CLI exit codes (the headline contract)
 
@@ -49,5 +65,7 @@ errors. A completed empty report remains successful engine execution.
 - Branch on the CODE, never the message text (prose may improve).
 - `QRS-002/003` on a server = your limits working; respond 413/422, don't
   retry.
+- `QRS-006` = the call is wrong, not the input: fix the option. The same
+  call fails the same way for every input, so never retry it unchanged.
 - `QRS-001` covers attacker-controlled bytes by design — it is safe to
   surface "invalid image" verbatim to end users.

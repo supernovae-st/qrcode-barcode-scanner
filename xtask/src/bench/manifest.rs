@@ -1229,7 +1229,7 @@ mod tests {
             vec![b.to_owned(), a.clone()],
             "sorted, distinct, 40 lowercase hex followed by a slash"
         );
-        assert!(embedded_rustc_commits(b"no compiler here").is_empty());
+        assert_eq!(embedded_rustc_commits(b"no compiler here").len(), 0);
     }
 
     /// The CLI pair: the published crate has no profile (cargo's defaults),

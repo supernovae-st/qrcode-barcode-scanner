@@ -113,12 +113,7 @@ fn presets_spell_the_two_postures() {
         ScorePreset::from_name("design").unwrap().skips(),
         vec![StressAxis::Perspective, StressAxis::Rotation]
     );
-    assert!(
-        ScorePreset::from_name("capture")
-            .unwrap()
-            .skips()
-            .is_empty()
-    );
+    assert_eq!(ScorePreset::from_name("capture").unwrap().skips().len(), 0);
     for junk in ["Design", "builder", ""] {
         assert!(ScorePreset::from_name(junk).is_none(), "{junk:?}");
     }
@@ -150,7 +145,7 @@ fn knee_axes_carry_a_refined_label() {
             .refined_failed_at
             .as_ref()
             .expect("every ordered-ramp knee is refined at Full depth");
-        assert!(!refined.is_empty());
+        assert_ne!(refined.len(), 0);
     }
     for axis in score.axes.iter().filter(|a| a.failed_at.is_none()) {
         assert!(

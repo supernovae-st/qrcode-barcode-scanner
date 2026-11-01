@@ -47,7 +47,7 @@ pub(crate) fn auto_background(content_luma: u8) -> [u8; 3] {
 /// on the first non-opaque byte, so the common fully-opaque RGBA input pays
 /// one alpha-byte compare per pixel and nothing else.
 pub(crate) fn has_transparency(rgba: &[u8]) -> bool {
-    rgba.chunks_exact(4).any(|px| px[3] < 255)
+    rgba.as_chunks::<4>().0.iter().any(|px| px[3] < 255)
 }
 
 /// One-pass content statistics over straight RGBA.
@@ -65,7 +65,7 @@ pub(crate) fn content_stats(rgba: &[u8]) -> ContentStats {
     let mut transparent = 0u64;
     let mut weight = 0u64;
     let mut weighted_luma = 0u64;
-    for px in rgba.chunks_exact(4) {
+    for px in rgba.as_chunks::<4>().0 {
         let a = u64::from(px[3]);
         if a < 255 {
             transparent += 1;
@@ -540,7 +540,7 @@ mod tests {
     fn classify_nothing_decoded_is_none() {
         let probes: Vec<(u8, bool)> = ENVELOPE_RUNGS.iter().map(|&bg| (bg, false)).collect();
         let (bands, placement) = classify(&probes);
-        assert!(bands.is_empty());
+        assert_eq!(bands.len(), 0);
         assert_eq!(placement, AlphaPlacement::None);
     }
 

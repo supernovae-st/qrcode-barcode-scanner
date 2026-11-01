@@ -45,6 +45,10 @@ pub(crate) struct RescueCandidate {
     pub stream: MaskedStream,
     /// Corners in ORIGINAL image space (rescaled by the ladder).
     pub corners: [Point; 4],
+    /// One pixel of the plane the engine measured the grid on, in the
+    /// corners' space: rescaled with them, so the reported footprint undoes
+    /// the engine's anchor in that plane's pixels.
+    pub pixel: Point,
     pub version: u8,
     pub ec: EcLevel,
     pub mask: u8,
@@ -199,7 +203,9 @@ fn codeword_margins(
     let span = hi - lo;
 
     let margins = all
-        .chunks_exact(8)
+        .as_chunks::<8>()
+        .0
+        .iter()
         .map(|module_bytes| {
             module_bytes
                 .iter()
@@ -371,6 +377,13 @@ pub(crate) enum Unverified {
     NothingVerifies,
     /// Both orientations error-correct, to different results (crafted
     /// grids): nothing is decided either way.
+    #[cfg_attr(
+        not(feature = "engine-rqrr"),
+        allow(
+            dead_code,
+            reason = "only rqrr's grids are re-derived in both orientations"
+        )
+    )]
     Ambiguous,
 }
 
@@ -568,6 +581,7 @@ mod probe {
                     x: p.x as f32,
                     y: p.y as f32,
                 }),
+                pixel: crate::engine::occurrence::UNIT_PIXEL,
                 version: u8::try_from(meta.version.0).unwrap(),
                 ec: match meta.ecc_level {
                     0 => EcLevel::M,
@@ -669,6 +683,7 @@ mod differential {
                         x: p.x as f32,
                         y: p.y as f32,
                     }),
+                    pixel: crate::engine::occurrence::UNIT_PIXEL,
                     version: u8::try_from(meta.version.0).unwrap(),
                     ec: match meta.ecc_level {
                         0 => EcLevel::M,
@@ -1038,6 +1053,7 @@ mod codewords {
                         x: p.x as f32,
                         y: p.y as f32,
                     }),
+                    pixel: crate::engine::occurrence::UNIT_PIXEL,
                     version: u8::try_from(meta.version.0).unwrap(),
                     ec: match meta.ecc_level {
                         0 => EcLevel::M,
@@ -1297,6 +1313,7 @@ mod codewords {
                 x: p.x as f32,
                 y: p.y as f32,
             }),
+            pixel: crate::engine::occurrence::UNIT_PIXEL,
             version: u8::try_from(meta.version.0).unwrap(),
             ec: sampled.ec,
             mask: u8::try_from(meta.mask).unwrap(),
@@ -1605,6 +1622,7 @@ mod pins {
                     y: DIM as f32,
                 },
             ],
+            pixel: crate::engine::occurrence::UNIT_PIXEL,
             version: 1,
             ec: EcLevel::M,
             mask: 0,

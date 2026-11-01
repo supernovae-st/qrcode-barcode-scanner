@@ -41,7 +41,12 @@ no build step.
 
 `scan(...)` throws `ScanBindingError` and returns the `ScanReport` as a **JSON
 `String`** (the cross-surface wire SSOT). Decode with `JSONDecoder` against
-`spec/scan-report.schema.json`. Run it off the main thread — the scan is sync.
+`spec/scan-report.schema.json`, leniently: the wire grows by additive keys and
+enum values (pipeline 5 added `detections[].occurrences` and
+`trace.saturation`). `JSONDecoder` ignores keys your types do not declare, but
+a `Codable` enum throws on a raw value it does not know: decode enum-like
+values such as `geometry.kind` as `String`, or give the enum an unknown case,
+and make new keys optional. Run it off the main thread — the scan is sync.
 
 ```swift
 import QrcodeAiScanner

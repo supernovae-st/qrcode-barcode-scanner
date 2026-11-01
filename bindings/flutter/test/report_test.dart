@@ -32,6 +32,13 @@ void main() {
         final r = ScanReport.parse(f.readAsStringSync());
         expect(r.versions.scoreContract, 5, reason: f.path);
         expect(r.detections, isA<List<Detection>>(), reason: f.path);
+        // pipeline 5 writes both: every detection is located at least once
+        // (an unavailable occurrence when no reader measured it)
+        expect(r.versions.pipeline, 5, reason: f.path);
+        expect(r.trace.saturation, isNotNull, reason: f.path);
+        for (final d in r.detections) {
+          expect(d.occurrences, isNotEmpty, reason: f.path);
+        }
       }
     }, skip: skipReason);
 
@@ -146,6 +153,55 @@ void main() {
       final whole = withTrace(
           '{"stages":[],"engine_panics":0,"total_ms":0,"budget_exhausted":false}');
       expect(whole.trace.budgetExhausted, isFalse);
+    });
+  });
+
+  group('occurrences and saturation (spec/01 § Occurrences)', () {
+    const detection = '"symbology":"code128",'
+        '"content":{"text":"STOCK-4827","raw":"U1RPQ0stNDgyNw==","charset":"utf8"},'
+        '"payload":{"kind":"text"},"corners":null,'
+        '"meta":{"version":null,"ec_level":null,"mask":null,"modules":null,"inverted":null},'
+        '"engines":["rxing"]';
+    const bare = '{"stages":[],"engine_panics":0,"total_ms":0}';
+    ScanReport report(String occurrences, String trace) => ScanReport.parse(
+        '{"detections":[{$detection$occurrences}],"score":null,"hints":[],'
+        '"trace":$trace,"versions":{"scanner":"0.11.0","pipeline":5,"score_contract":5}}');
+
+    test('an older report has neither: unknown, never empty or false', () {
+      final r = report('', bare);
+      expect(r.detections.single.occurrences, isNull);
+      expect(r.trace.saturation, isNull);
+    });
+
+    test('two printed copies are one detection with two occurrences', () {
+      final r = report(
+          ',"occurrences":['
+          '{"geometry":{"kind":"segment","points":[{"x":64.5,"y":60.5},{"x":427.5,"y":60.5}],"reader":"rxing"}},'
+          '{"geometry":{"kind":"segment","points":[{"x":64.5,"y":240.5},{"x":427.5,"y":240.5}],"reader":"rxing"}}]',
+          '{"stages":[],"engine_panics":0,"total_ms":0,"budget_exhausted":false,'
+          '"saturation":{"reads":false,"detections":false,"occurrences":true}}');
+      final occurrences = r.detections.single.occurrences!;
+      expect(occurrences, hasLength(2));
+      final second = occurrences[1].geometry;
+      expect(second.kind, GeometryKind.segment);
+      expect(second.reader, EngineKind.rxing);
+      expect(second.points.map((p) => p.y).toList(), [240.5, 240.5]);
+      final s = r.trace.saturation!;
+      expect([s.reads, s.detections, s.occurrences], [false, false, true]);
+    });
+
+    test('unavailable has no reader; a newer kind reads as unknown', () {
+      final r = report(
+          ',"occurrences":['
+          '{"geometry":{"kind":"unavailable","points":[],"reader":null}},'
+          '{"geometry":{"kind":"future_kind","points":[{"x":1,"y":2}],"reader":"rqrr"}}]',
+          bare);
+      final occurrences = r.detections.single.occurrences!;
+      expect(occurrences[0].geometry.kind, GeometryKind.unavailable);
+      expect(occurrences[0].geometry.points, isEmpty);
+      expect(occurrences[0].geometry.reader, isNull);
+      expect(occurrences[1].geometry.kind, GeometryKind.unknown);
+      expect(occurrences[1].geometry.reader, EngineKind.rqrr);
     });
   });
 

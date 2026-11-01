@@ -108,6 +108,45 @@ assert.equal(whole.trace.budget_exhausted, false);
 const v2l = fixture("clean/gen_v2_l.png");
 assert.deepEqual(texts(scan_image(v2l, "fast", undefined, undefined, 0)), ["qrc.ai/v2l"], "budget 0 means unbounded");
 
+// Option domains (spec/02-profiles.md § Option domains), the same table as the
+// Node smoke: 0.10.1 turned budget_ms 1e300 into an unbounded scan, disabled
+// the size cap on max_dimension -1 (ToUint32) and dropped max_pixels 0 / NaN /
+// Infinity for the default or no cap at all. A zero-ms deadline has always
+// passed, so the cut below reads no clock.
+const fastScan = (dim, px, ms, bytes = v2l) => scan_image(bytes, "fast", dim, px, ms);
+const outcome = (r) => [texts(r), r.trace.budget_exhausted];
+// unbounded, or the 49.7-day maximum (no machine load reaches it)
+for (const ms of [0, -0, -1, NaN, Infinity, -Infinity, 4294967295]) {
+  assert.deepEqual(outcome(fastScan(undefined, undefined, ms)), [["qrc.ai/v2l"], false],
+    `budget_ms ${ms}: unbounded or ample`);
+}
+for (const ms of [0.5, Number.MIN_VALUE]) {
+  assert.deepEqual(outcome(fastScan(undefined, undefined, ms)), [[], true], `budget_ms ${ms} floors to a zero-ms budget`);
+}
+const refused = (option) => new RegExp(`invalid option \`${option}\`: .* \\[QRS-006\\]$`);
+for (const ms of [4294967296, 4294967297, 1e300, Number.MAX_VALUE]) {
+  assert.throws(() => fastScan(undefined, undefined, ms), refused("budget_ms"), `budget_ms ${ms} is above the maximum`);
+}
+for (const dim of [0, -0, -1, 0.5, 4096.7, NaN, Infinity, -Infinity, 4294967296]) {
+  assert.throws(() => fastScan(dim, undefined, 0), refused("max_dimension"), `max_dimension ${dim}`);
+}
+for (const px of [0, -1, 0.5, 1.5, NaN, Infinity, 9007199254740992]) {
+  assert.throws(() => fastScan(undefined, px, 0), refused("max_pixels"), `max_pixels ${px}`);
+}
+// each domain's extremes are caps, not option errors: 1 refuses this image
+// under the cap's own code, the ceilings admit it
+assert.throws(() => fastScan(1, undefined, 0), /\[QRS-002\]$/);
+assert.throws(() => fastScan(undefined, 1, 0), /\[QRS-003\]$/);
+for (const [dim, px] of [[4294967295, undefined], [undefined, 9007199254740991], [null, null]]) {
+  assert.deepEqual(outcome(fastScan(dim, px, 0)), [["qrc.ai/v2l"], false], `caps ${dim} · ${px}`);
+}
+// the option is reported before the input is read; scan_frame shares the budget domain
+assert.throws(() => fastScan(0, undefined, 0, new Uint8Array([1, 2, 3])), refused("max_dimension"));
+const blank = new Uint8Array(16 * 16 * 4).fill(255);
+assert.throws(() => scan_frame(blank, 16, 16, "fast", 4294967297), refused("budget_ms"));
+assert.deepEqual(outcome(scan_frame(blank, 16, 16, "fast", 0.5)), [[], true], "a zero-ms frame budget is a cut");
+assert.deepEqual(outcome(scan_frame(blank, 16, 16, "fast", NaN)), [[], false], "NaN is unbounded on frames too");
+
 // score_skip_axes (#6) + score_skip_checks (#7): skipped axes absent, skipped
 // sections null, and a skipped check never moves the composite (spec/04)
 const v2lFull = scan_image(v2l, "full", undefined, undefined, 0);

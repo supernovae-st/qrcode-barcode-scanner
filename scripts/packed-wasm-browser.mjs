@@ -111,7 +111,7 @@ try {
         assert.equal(response.ok, true, `${fixture.name}: ${JSON.stringify(response)}`);
         assert.deepEqual(response.result.detections.map(d => d.content), fixture.expected, fixture.name);
         assert.equal(response.result.trace.budget_exhausted, false);
-        assert.deepEqual(response.result.versions, { scanner: manifest.version, pipeline: 4, score_contract: 5 });
+        assert.deepEqual(response.result.versions, { scanner: manifest.version, pipeline: 5, score_contract: 5 });
         reports.push(response.result); latency.push({ fixture: fixture.name, wallMs: performance.now() - started });
       }
       if (!disabled) {

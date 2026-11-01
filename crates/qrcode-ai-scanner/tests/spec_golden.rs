@@ -353,6 +353,100 @@ fn content_contract_objects_validate_and_its_negatives_do_not() {
     }
 }
 
+/// Occurrence test objects (each geometry kind at its point counts, both
+/// readers) and the schema's negatives (spec/01 § Occurrences).
+const OCCURRENCE_OBJECTS: &str = r#"{"valid":[
+{"geometry":{"kind":"quad","points":[{"x":32,"y":32},{"x":328,"y":32},{"x":328,"y":328},{"x":32,"y":328}],"reader":"rqrr"}},
+{"geometry":{"kind":"quad","points":[{"x":0.5,"y":1.5},{"x":90.5,"y":1.5},{"x":90.5,"y":91.5},{"x":0.5,"y":91.5}],"reader":"rxing"}},
+{"geometry":{"kind":"segment","points":[{"x":51,"y":393.5},{"x":293,"y":393.5}],"reader":"rxing"}},
+{"geometry":{"kind":"partial","points":[{"x":57.5,"y":153.5}],"reader":"rxing"}},
+{"geometry":{"kind":"partial","points":[{"x":57.5,"y":153.5},{"x":333.5,"y":153.5},{"x":365,"y":153.5},{"x":500,"y":153.5}],"reader":"rxing"}},
+{"geometry":{"kind":"partial","points":[{"x":1,"y":1},{"x":2,"y":1},{"x":3,"y":1},{"x":4,"y":1},{"x":5,"y":1},{"x":6,"y":1},{"x":7,"y":1},{"x":8,"y":1}],"reader":"rqrr"}},
+{"geometry":{"kind":"unavailable","points":[],"reader":null}}
+],"invalid":[
+{"why":"quad of three points","value":{"geometry":{"kind":"quad","points":[{"x":0,"y":0},{"x":9,"y":0},{"x":9,"y":9}],"reader":"rqrr"}}},
+{"why":"segment of three points","value":{"geometry":{"kind":"segment","points":[{"x":0,"y":0},{"x":5,"y":0},{"x":9,"y":0}],"reader":"rxing"}}},
+{"why":"partial without a point","value":{"geometry":{"kind":"partial","points":[],"reader":"rxing"}}},
+{"why":"partial of nine points","value":{"geometry":{"kind":"partial","points":[{"x":1,"y":1},{"x":2,"y":1},{"x":3,"y":1},{"x":4,"y":1},{"x":5,"y":1},{"x":6,"y":1},{"x":7,"y":1},{"x":8,"y":1},{"x":9,"y":1}],"reader":"rxing"}}},
+{"why":"unavailable with a point","value":{"geometry":{"kind":"unavailable","points":[{"x":0,"y":0}],"reader":null}}},
+{"why":"unavailable with a reader","value":{"geometry":{"kind":"unavailable","points":[],"reader":"rxing"}}},
+{"why":"measured without a reader","value":{"geometry":{"kind":"segment","points":[{"x":0,"y":0},{"x":9,"y":0}],"reader":null}}},
+{"why":"the rescue as reader","value":{"geometry":{"kind":"quad","points":[{"x":0,"y":0},{"x":9,"y":0},{"x":9,"y":9},{"x":0,"y":9}],"reader":"rescue"}}},
+{"why":"an unknown kind","value":{"geometry":{"kind":"box","points":[],"reader":null}}},
+{"why":"no reader key","value":{"geometry":{"kind":"unavailable","points":[]}}},
+{"why":"no geometry","value":{}},
+{"why":"a point without y","value":{"geometry":{"kind":"partial","points":[{"x":1}],"reader":"rxing"}}}
+]}"#;
+
+#[test]
+fn occurrence_objects_validate_and_their_negatives_do_not() {
+    let validator = definition("Occurrence");
+    let objects: serde_json::Value = serde_json::from_str(OCCURRENCE_OBJECTS).unwrap();
+    for occurrence in objects["valid"].as_array().unwrap() {
+        let errors: Vec<String> = validator
+            .iter_errors(occurrence)
+            .map(|e| format!("{} @ {}", e, e.instance_path()))
+            .collect();
+        assert!(errors.is_empty(), "{occurrence}: {errors:#?}");
+        // the real types read it back to the same object
+        let back: qrcode_ai_scanner::Occurrence = serde_json::from_value(occurrence.clone())
+            .unwrap_or_else(|e| panic!("{occurrence}: {e}"));
+        let round = serde_json::to_value(&back).unwrap();
+        assert!(
+            validator.is_valid(&round),
+            "{occurrence} re-written as {round}"
+        );
+        assert_eq!(round["geometry"]["kind"], occurrence["geometry"]["kind"]);
+        assert_eq!(
+            round["geometry"]["points"].as_array().unwrap().len(),
+            occurrence["geometry"]["points"].as_array().unwrap().len()
+        );
+    }
+    for negative in objects["invalid"].as_array().unwrap() {
+        assert!(
+            !validator.is_valid(&negative["value"]),
+            "{}: {}",
+            negative["why"],
+            negative["value"]
+        );
+    }
+    // a detection carries one to sixteen occurrences
+    let occurrences = definition("Detection");
+    let golden: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(spec_path("examples/clean-url.json")).unwrap(),
+    )
+    .unwrap();
+    let mut detection = golden["detections"][0].clone();
+    assert!(occurrences.is_valid(&detection), "{detection}");
+    let one = detection["occurrences"][0].clone();
+    for (count, valid) in [(0, false), (1, true), (16, true), (17, false)] {
+        detection["occurrences"] = serde_json::Value::Array(vec![one.clone(); count]);
+        assert_eq!(
+            occurrences.is_valid(&detection),
+            valid,
+            "{count} occurrences"
+        );
+    }
+    // pipeline 5 always writes the field; older reports may omit it
+    detection.as_object_mut().unwrap().remove("occurrences");
+    assert!(occurrences.is_valid(&detection), "an older detection");
+}
+
+#[test]
+fn saturation_requires_its_three_flags() {
+    let validator = definition("Saturation");
+    assert!(validator.is_valid(&serde_json::json!(
+        {"reads": false, "detections": true, "occurrences": false}
+    )));
+    for negative in [
+        serde_json::json!({"reads": false, "detections": false}),
+        serde_json::json!({"reads": false, "detections": false, "occurrences": null}),
+        serde_json::json!({"reads": 0, "detections": false, "occurrences": false}),
+    ] {
+        assert!(!validator.is_valid(&negative), "{negative}");
+    }
+}
+
 #[test]
 fn fresh_scan_validates_against_the_spec_schema() {
     let validator = schema();

@@ -37,7 +37,7 @@ def probe(args):
     data = Path(args.fixture).read_bytes()
     text = "https://qrcode-ai.com/c/v5q"
     full = qr.scan(data, "full", budget_ms=0)
-    assert full["versions"] == {"scanner": args.version, "pipeline": 4, "score_contract": 5}
+    assert full["versions"] == {"scanner": args.version, "pipeline": 5, "score_contract": 5}
     assert full["trace"]["budget_exhausted"] is False
     assert len(full["detections"]) == 1
     det = full["detections"][0]

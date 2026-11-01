@@ -46,6 +46,15 @@ normalized: `maxDimension` and `maxPixels`, not `budgetMs`, bound the
 decode itself.
 </Warning>
 
+The options are read as JavaScript numbers, the same way as the WASM
+package (`spec/02-profiles.md` § Option domains). `budgetMs`: `0`, a
+negative, `NaN` or `Infinity` is unbounded; a fraction floors to whole
+milliseconds (`0.5` is a zero-millisecond budget, cut before the first
+stage); above 4294967295 rejects. `maxDimension` / `maxPixels`: a whole
+number from 1 (to 4294967295 / `Number.MAX_SAFE_INTEGER`); `0`, a negative,
+a fraction, `NaN` or an infinity rejects — never a wrapped or disabled cap.
+A refused option rejects with `[QRS-006]` before the image is read.
+
 ## Server recipe (Nitro/Express upload endpoint)
 
 ```ts

@@ -89,12 +89,22 @@ sizes, tool versions, feature requirements and representative measured timings.
 Do not replace a published archive at an existing version. Loader-only corrections
 follow the same patch-version, lockfile, golden and publication policy above.
 
-On the pinned compiler (§ Toolchain), against the committed lockfiles:
+### Local development checks
+
+Read `RUST_TOOLCHAIN` in `.github/workflows/ci.yml` and the manifest's
+`rust-version` before selecting tools. The exact development/CI compiler and
+the MSRV floor are separate checks. Inspect installed checker versions too:
+the workflow's cargo-deny version and syntax are authoritative for CI parity.
+An installed older checker result must retain that difference in its receipt.
+
+The commands below select the current pin explicitly and keep lockfiles fixed.
+They apply to the recorded source input; identify owned local changes as well
+as HEAD when the candidate is not committed yet.
 
 ```bash
-cargo +1.97.0 fmt --all --check
-RUSTFLAGS="-D warnings" cargo +1.97.0 clippy --workspace --all-targets --all-features --locked
-cargo +1.97.0 nextest run --workspace --locked && cargo +1.97.0 test --doc --workspace --locked
+cargo +1.99.1 fmt --all --check
+RUSTFLAGS="-D warnings" cargo +1.99.1 clippy --workspace --all-targets --all-features --locked
+cargo +1.99.1 nextest run --workspace --locked && cargo +1.99.1 test --doc --workspace --locked
 python3 scripts/check-type-parity.py
 cargo +1.88 check -p qrcode-ai-scanner --all-features --locked   # MSRV
 python3 scripts/check-publish-guards.py --self-test   # both workflow policies' own scenarios
@@ -103,8 +113,34 @@ python3 scripts/check-publish-guards.py --toolchains  # one Rust toolchain (§ T
 python3 scripts/package-inspect.py selftest           # the archive inspector's own scenarios
 ```
 
-Foreign trees when their code changed: `cargo +1.97.0 test --locked
---manifest-path crates/qrcode-ai-scanner-{py,uniffi}/Cargo.toml`.
+Core/dependency changes can invalidate four graphs outside the workspace, even
+when wrapper code is unchanged. Check every affected locked root before its
+selected native/platform tests:
+
+```bash
+for manifest in \
+  crates/qrcode-ai-scanner-py/Cargo.toml \
+  crates/qrcode-ai-scanner-uniffi/Cargo.toml \
+  bindings/flutter/rust/Cargo.toml \
+  fuzz/Cargo.toml; do
+  cargo +1.99.1 metadata --locked --format-version 1 --manifest-path "$manifest" || exit "$?"
+done
+
+cargo +1.99.1 test --locked --manifest-path crates/qrcode-ai-scanner-py/Cargo.toml
+cargo +1.99.1 test --locked --manifest-path crates/qrcode-ai-scanner-uniffi/Cargo.toml
+```
+
+Use one manifest path per Cargo invocation. Locked metadata checks dependency
+closure; it does not build or test a binding. Flutter needs its portable staged
+package/FRB/platform gates. Fuzzing uses the separately pinned nightly and its
+own bounded workflow. Missing relocated fixtures or skipped selected tests do
+not establish binding acceptance.
+
+For consumers created outside the checkout, pass the exact compiler through
+`RUSTUP_TOOLCHAIN` (or wrap the complete consumer in `rustup run`). A checkout-local
+override does not apply after the consumer changes into a temporary project.
+Read each script's temporary-target behavior, reserve disk and retain logs/receipts;
+the lane's `CARGO_TARGET_DIR` need not control the consumer's separate build.
 
 ## 4 · Push, then gate CI **per-workflow-latest** before tagging
 
@@ -499,7 +535,7 @@ References: [GitHub Container registry](https://docs.github.com/en/packages/work
 
 ## Toolchain — one compiler, pinned
 
-Every leg that builds, tests or publishes runs **Rust 1.97.0**:
+Every leg that builds, tests or publishes runs **Rust 1.99.1**:
 `RUST_TOOLCHAIN` at the top of each workflow (ci · deep-checks ·
 crates-publish · npm-publish · python · mobile · flutter · toolchain-probe).
 `ci › lint` runs `scripts/check-publish-guards.py --toolchains`, which reads
@@ -515,13 +551,18 @@ file exists anywhere in the tree, where it would outrank `rustup default`.
 The one literal is the MSRV leg, at the `rust-version` the root manifest
 declares (pinned by SHA, it says so in its toolchain input).
 
-Why 1.97.0: it is the compiler the PR gate has proven (fmt, clippy
-`-D warnings`, the suite on three OSes). Before, every publisher and binding
-build took whatever `stable` was that day (1.99.0 on 2026-10-09), so the
-compiler that judged a release was not the one that built it. A compiler bump
-is one deliberate commit that moves every `RUST_TOOLCHAIN` together, then
-reruns the gates, rescue-stress included (f32 warp sampling may move in the
-last ulp across compilers, and its gate is same-machine determinism).
+Why 1.99.1: the deliberate 1 November 2026 update selects the stable point
+release that fixes x86_64 FFI `bool` return-value miscompilation and macOS
+`rust-lld` loading, among other fixes ([official release notes](https://blog.rust-lang.org/2026/10/15/Rust-1.99.1/)).
+All workflow pins, the registry Rust consumer and these commands move together;
+the declared MSRV remains 1.88. The earlier 1.97.0 receipts do not qualify this
+compiler. Local checks and fresh three-OS CI/packed-consumer results are separate
+evidence. Run the local checks before integrating the compiler update; the pin
+change alone does not qualify a release.
+
+Every compiler bump reruns the applicable gates, rescue-stress included (f32
+warp sampling may move in the last ulp across compilers, and its gate is
+same-machine determinism). Keep the exact compiler in the resulting receipts.
 
 Named exceptions, each documented where it lives:
 - **MSRV** — `ci › msrv` checks the 1.88 floor that every `rust-version`
@@ -531,7 +572,7 @@ Named exceptions, each documented where it lives:
 - **cargokit** — Flutter device builds (and every consuming app's build) can
   only name the stable / beta / nightly channels; pub.dev ships sources.
 - **bindings/swift/release.sh** — builds with the caller's toolchain: run it
-  as `RUSTUP_TOOLCHAIN=1.97.0 bindings/swift/release.sh vX.Y.Z`.
+  as `RUSTUP_TOOLCHAIN=1.99.1 bindings/swift/release.sh vX.Y.Z`.
 
 `--locked` wherever a lockfile exists: every cargo build, test, run and
 publish in the workflows, `napi build -- --locked`, `wasm-pack build --

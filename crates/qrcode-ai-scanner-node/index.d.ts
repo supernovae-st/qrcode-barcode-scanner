@@ -31,17 +31,25 @@ export interface ScanOptions {
   signal?: AbortSignal;
   /**
    * Max accepted width/height in px (default 10000). Server deployments
-   * handling untrusted uploads SHOULD lower this (e.g. 4096).
+   * handling untrusted uploads SHOULD lower this (e.g. 4096). A whole number
+   * from 1 to 4294967295; anything else rejects `[QRS-006]` before the image
+   * is read.
    */
   maxDimension?: number;
-  /** Max accepted total pixels (default 64_000_000; servers: e.g. 16_000_000). */
+  /**
+   * Max accepted total pixels (default 64_000_000; servers: e.g. 16_000_000).
+   * A whole number from 1 to `Number.MAX_SAFE_INTEGER`; anything else
+   * rejects `[QRS-006]` before the image is read.
+   */
   maxPixels?: number;
   /**
    * Override the profile's wall-clock budget in ms — bound tail latency
    * without giving up the deep ladder. Unset keeps the profile default
    * (full 4000 · fast 800 · frame 80 ms); 0 = unbounded, the reproducible
-   * mode. A report the budget cut says so (`trace.budget_exhausted ===
-   * true`): empty detections are then not final, and a null score beside
+   * mode (a negative, NaN or Infinity too). A fraction floors to whole ms,
+   * so 0.5 is a zero-ms budget; above 4294967295 rejects `[QRS-006]`. A
+   * report the budget cut says so (`trace.budget_exhausted === true`):
+   * empty detections are then not final, and a null score beside
    * detections means "not judged" — never 0.
    */
   budgetMs?: number;

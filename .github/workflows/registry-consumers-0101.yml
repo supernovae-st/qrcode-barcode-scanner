@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 env:
-  RUST_TOOLCHAIN: "1.97.0"
+  RUST_TOOLCHAIN: "1.99.1"
 jobs:
   npm-registry-native:
     if: inputs.mode == 'npm'

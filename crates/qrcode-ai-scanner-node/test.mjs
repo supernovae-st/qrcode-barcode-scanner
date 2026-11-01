@@ -87,6 +87,43 @@ assert.equal(whole.trace.budget_exhausted, false);
 // 0 = UNBOUNDED, not a 0 ms budget (that would return empty before any attempt)
 assert.deepEqual(scanSync(clean, { profile: "fast", budgetMs: 0 }).detections.map((d) => d.content.text), [V5Q]);
 
+// Option domains (spec/02-profiles.md § Option domains), the same table as the
+// wasm smoke: the numbers reach the core as doubles, never through Node-API's
+// integer conversions — 0.10.1 wrapped budgetMs 4294967297 to a 1 ms budget,
+// ran budgetMs 0.5 unbounded, disabled the size cap on maxDimension -1 and
+// refused every image on maxPixels NaN. A zero-ms deadline has always passed,
+// so the cut below reads no clock.
+const fast = (options, image = clean) => scanSync(image, { profile: "fast", ...options });
+const outcome = (r) => [r.detections.map((d) => d.content.text), r.trace.budget_exhausted];
+// unbounded, or the 49.7-day maximum (no machine load reaches it)
+for (const budgetMs of [0, -0, -1, NaN, Infinity, -Infinity, 4294967295]) {
+  assert.deepEqual(outcome(fast({ budgetMs })), [[V5Q], false], `budgetMs ${budgetMs}: unbounded or ample`);
+}
+for (const budgetMs of [0.5, Number.MIN_VALUE]) {
+  assert.deepEqual(outcome(fast({ budgetMs })), [[], true], `budgetMs ${budgetMs} floors to a zero-ms budget`);
+}
+const refused = (option) => new RegExp(`invalid option \`${option}\`: .* \\[QRS-006\\]$`);
+for (const budgetMs of [4294967296, 4294967297, 1e300, Number.MAX_VALUE]) {
+  assert.throws(() => fast({ budgetMs }), refused("budget_ms"), `budgetMs ${budgetMs} is above the maximum`);
+}
+for (const maxDimension of [0, -0, -1, 0.5, 4096.7, NaN, Infinity, -Infinity, 4294967296]) {
+  assert.throws(() => fast({ maxDimension }), refused("max_dimension"), `maxDimension ${maxDimension}`);
+}
+for (const maxPixels of [0, -1, 0.5, 1.5, NaN, Infinity, 9007199254740992]) {
+  assert.throws(() => fast({ maxPixels }), refused("max_pixels"), `maxPixels ${maxPixels}`);
+}
+// each domain's extremes are caps, not option errors: 1 refuses this image
+// under the cap's own code, the ceilings admit it
+assert.throws(() => fast({ maxDimension: 1 }), /\[QRS-002\]$/);
+assert.throws(() => fast({ maxPixels: 1 }), /\[QRS-003\]$/);
+for (const options of [{ maxDimension: 4294967295 }, { maxPixels: 9007199254740991 }, { maxDimension: null, maxPixels: null }]) {
+  assert.deepEqual(outcome(fast(options)), [[V5Q], false], JSON.stringify(options));
+}
+// the option is reported before the input is read, on both paths
+assert.throws(() => fast({ maxDimension: 0 }, Buffer.from("garbage")), refused("max_dimension"));
+await assert.rejects(() => scan(clean, { budgetMs: 4294967297 }), refused("budget_ms"));
+await assert.rejects(() => scan(Buffer.from("garbage"), { maxPixels: NaN }), refused("max_pixels"));
+
 // scoreSkipAxes: skipped axes absent from the wire, weights declare the
 // partial contract; typos reject loudly
 const skipped = scanSync(clean, { profile: "full", budgetMs: 0, scoreSkipAxes: ["perspective", "rotation"] });

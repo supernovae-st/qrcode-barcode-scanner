@@ -1,11 +1,11 @@
 //! rqrr wrapper — the geometry + metadata engine (quirc lineage).
 //!
 //! Always through `decode_to` raw bytes: rqrr's `decode()` forces UTF-8.
-//! rqrr parses ECI designators and DISCARDS them (0.10.1 and 0.11.0), so the
+//! rqrr parses ECI designators and DISCARDS them (verified on 0.11.0), so the
 //! adapter re-derives the segment structure from the sampled grid with the
 //! scanner's own codeword path — interpretation is OUR job, once, in
 //! `engine::content`. The verified stream decides the payload bytes too:
-//! rqrr's own conversion is not the truth (0.10.1 writes the Kanji values
+//! rqrr's own conversion is not the truth (0.11.0 still writes the Kanji values
 //! 5949-5951 as Shift JIS DF FD..DF FF — `value + 0x8140 <= 0x9FFC` —
 //! where ISO 18004 §7.4.6 gives 9F FD..9F FF). Which orientation verifies is
 //! checked, never assumed ([`settle`]); the read publishes the stream and
@@ -14,8 +14,11 @@
 //! verify ([`rescue_input`]: a mirrored FNC1 symbol), decided once for at
 //! most [`MAX_CANDIDATES`] grids per pass.
 
+use rqrr::BitGrid as _;
+
 use super::content::{EciEvidence, EngineReading, Fnc1, Segments};
 use super::locate::{Frame, LocateHint};
+use super::occurrence::{UNIT_PIXEL, rqrr_footprint};
 use super::{MaskedStream, RawDetection, Refusal};
 use crate::input::LumaImage;
 use crate::report::{EcLevel, EngineKind, Point, Symbology};
@@ -135,6 +138,7 @@ pub(super) fn decode(luma: &LumaImage, orient_candidates: bool) -> Pass {
             engine_reading: EngineReading::None,
             location: Some(bounds),
             matrix_region: Some(bounds),
+            footprint: rqrr_footprint(bounds, grid.grid.size(), UNIT_PIXEL),
             locate,
             needs_confirmation: false,
             margin,
@@ -181,6 +185,7 @@ fn candidate<G>(
     Some(RescueCandidate {
         stream: masked(&raw_data),
         corners: corners(grid),
+        pixel: UNIT_PIXEL,
         version: u8::try_from(meta.version.0).ok()?,
         ec: map_ec(meta.ecc_level)?,
         mask: u8::try_from(meta.mask).ok()?,

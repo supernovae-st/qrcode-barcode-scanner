@@ -79,6 +79,29 @@ impl Default for Limits {
     }
 }
 
+impl Limits {
+    /// Refuse limits no input can pass (`QRS-006`): a zero `max_dimension`
+    /// or `max_pixels` would turn every scan into `QRS-002`/`QRS-003`.
+    ///
+    /// # Errors
+    /// `QRS-006` naming the zero limit.
+    pub fn validate(&self) -> Result<()> {
+        if self.max_dimension == 0 {
+            return Err(ScanError::invalid_option(
+                "max_dimension",
+                "0 pixels; the smallest is 1",
+            ));
+        }
+        if self.max_pixels == 0 {
+            return Err(ScanError::invalid_option(
+                "max_pixels",
+                "0 pixels; the smallest is 1",
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Internal owned grayscale image — the only shape engines consume.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LumaImage {

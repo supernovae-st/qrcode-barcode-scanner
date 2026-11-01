@@ -2981,7 +2981,7 @@ mod tests {
         assert_eq!(abba(&[A, B], 5), vec![A, B, B, A, A, B, B, A, A, B]);
         assert_eq!(abba(&[A, B], 2), vec![A, B, B, A]);
         assert_eq!(abba(&[B], 3), vec![B, B, B]);
-        assert!(abba(&[], 5).is_empty());
+        assert_eq!(abba(&[], 5).len(), 0);
         let twelve = abba(&[A, B], COLD_PAIRS);
         assert_eq!(twelve.iter().filter(|v| **v == A).count(), 12);
         assert_eq!(twelve.len(), 24);
@@ -3128,7 +3128,7 @@ mod tests {
         ] {
             args.extend([flag, "/p"]);
         }
-        assert!(opts(&args).expect("parses").subset().is_empty());
+        assert_eq!(opts(&args).expect("parses").subset().len(), 0);
         let mut sampled = args.clone();
         sampled.extend(["--per-group", "1"]);
         assert_eq!(
@@ -3298,7 +3298,10 @@ mod tests {
             worker: None,
             loaded: None,
         };
-        assert!(worker_parity(&hello("w", "m"), &hello("w", "m"), "w").is_empty());
+        assert_eq!(
+            worker_parity(&hello("w", "m"), &hello("w", "m"), "w").len(),
+            0
+        );
         let stale = worker_parity(&hello("old", "m"), &hello("w", "m"), "w");
         assert_eq!(stale.len(), 1);
         assert_eq!(stale[0].what, "worker_source");
@@ -4109,7 +4112,7 @@ mod tests {
             fixture: None,
             vendored_files: Vec::new(),
         };
-        assert!(pin_findings(&pinned, Set::ALL).is_empty());
+        assert_eq!(pin_findings(&pinned, Set::ALL).len(), 0);
         let drifted = Inputs {
             manifest_sha256: String::from("ff"),
             ..pinned.clone()
@@ -4260,7 +4263,7 @@ mod tests {
                 .map(|f| f.detail.clone())
                 .collect()
         };
-        assert!(loaded("qrcode-ai-scanner.darwin-arm64.node").is_empty());
+        assert_eq!(loaded("qrcode-ai-scanner.darwin-arm64.node").len(), 0);
         assert_eq!(
             loaded("nested/qrcode-ai-scanner.darwin-arm64.node"),
             vec![String::from(
@@ -4434,7 +4437,10 @@ mod tests {
             "source: base: its manifest does not record a build inside its source — stamp it again",
         )];
         let mut node = stamped(archive, Some(("0.9.0", "path", None)));
-        assert!(identity_of((Runtime::Node, Variant::Base), &node, None).is_empty());
+        assert_eq!(
+            identity_of((Runtime::Node, Variant::Base), &node, None).len(),
+            0
+        );
         if let Some(build) = node.build.as_mut() {
             build.inside_source = false;
         }
@@ -4452,7 +4458,10 @@ mod tests {
             env: BTreeMap::new(),
             inside_source: true,
         });
-        assert!(identity_of((Runtime::Wasm, Variant::Base), &wasm, None).is_empty());
+        assert_eq!(
+            identity_of((Runtime::Wasm, Variant::Base), &wasm, None).len(),
+            0
+        );
         if let Some(build) = wasm.wasm_build.as_mut() {
             build.inside_source = false;
         }
@@ -4464,7 +4473,10 @@ mod tests {
         if let Some(build) = candidate.build.as_mut() {
             build.inside_source = false;
         }
-        assert!(identity_of((Runtime::Node, Variant::Candidate), &candidate, None).is_empty());
+        assert_eq!(
+            identity_of((Runtime::Node, Variant::Candidate), &candidate, None).len(),
+            0
+        );
     }
 
     /// Swapped, mislabelled and dirty sides are refused by name: library

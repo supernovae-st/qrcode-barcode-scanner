@@ -28,7 +28,12 @@ class ScanReport(TypedDict):
     the QR family ``raw`` is the decoding engine's reading, which under an ECI
     can omit a segment the engine could not read. Two detections denote the
     same content by ``symbology``, ``raw``, ``fnc1`` and ``eci``, never by
-    ``text`` (spec/01 § Content)."""
+    ``text`` (spec/01 § Content). ``occurrences`` (pipeline 5) lists where
+    each physical copy of that content was measured, earliest first, as
+    ``{"geometry": {"kind", "points", "reader"}}``: ``kind`` is ``"quad"``,
+    ``"segment"``, ``"partial"`` or ``"unavailable"`` (no point, ``reader``
+    ``None``). Never read a segment as the symbol's extent or height
+    (spec/01 § Occurrences)."""
     score: dict[str, Any] | None
     """The judgment of ``detections[0]``. ``None`` when no judgment was
     published: no detection · a configuration that computes no score
@@ -45,7 +50,10 @@ class ScanReport(TypedDict):
     ``True`` when the budget prevented planned work (the report is partial),
     ``False`` when every planned unit ran (final, equal to the unbounded
     report); absent on reports older than score_contract 5 (unknown, never
-    ``False``)."""
+    ``False``). ``trace["saturation"]`` (pipeline 5): ``reads``,
+    ``detections`` and ``occurrences`` booleans, ``True`` when that capacity
+    was reached and something past it is unknown; independent of the
+    budget."""
     versions: dict[str, Any]
 
 def scan(
@@ -64,10 +72,11 @@ def scan(
 
     profile: ``"full"`` (quality gate) | ``"fast"`` (upload) | ``"frame"`` (no scoring).
     max_dimension / max_pixels: optional input-size caps (defaults 10000 px / 64M px) —
-    raise for huge images, lower to harden a server against adversarial input.
+    raise for huge images, lower to harden a server against adversarial input. A zero
+    cap raises ``ValueError`` ending ``[QRS-006]`` before the image is read.
     budget_ms: overrides the profile's wall-clock budget; ``0`` = unbounded (NOT a
-    zero-millisecond budget). Unset keeps the profile default (full 4000 · fast 800
-    · frame 80 ms). With a budget, where the run cuts is machine-dependent and a
+    zero-millisecond budget); above 4294967295 raises ``[QRS-006]``. Unset keeps the
+    profile default (full 4000 · fast 800 · frame 80 ms). With a budget, where the run cuts is machine-dependent and a
     cut report says so (``trace["budget_exhausted"]``) — strictly reproducible
     reports need ``budget_ms=0`` (spec/02).
     score_skip_axes: stress axes excluded from scoring, engine-side (wire names,

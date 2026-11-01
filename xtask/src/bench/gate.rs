@@ -932,7 +932,7 @@ mod tests {
             })
         };
         let (found, unread) = sibling_builds_in(&table(), &markers, 210, &cwd);
-        assert!(unread.is_empty());
+        assert_eq!(unread.len(), 0);
         assert_eq!(
             found,
             vec![

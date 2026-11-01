@@ -604,19 +604,17 @@ fn decode(bytes: &[u8], set: EciSet) -> (String, bool) {
             (text.into_owned(), marked)
         }
         EciSet::Utf32 { big_endian } => {
-            let units = bytes.chunks_exact(4);
+            let (units, remainder) = bytes.as_chunks::<4>();
             // a truncated final unit is one ill-formed subpart
-            let truncated = !units.remainder().is_empty();
+            let truncated = !remainder.is_empty();
             let mut marked = truncated;
             let mut text = String::with_capacity(bytes.len() / 4 + 1);
-            for unit in units {
-                let word = <[u8; 4]>::try_from(unit).map_or(u32::MAX, |unit| {
-                    if big_endian {
-                        u32::from_be_bytes(unit)
-                    } else {
-                        u32::from_le_bytes(unit)
-                    }
-                });
+            for &unit in units {
+                let word = if big_endian {
+                    u32::from_be_bytes(unit)
+                } else {
+                    u32::from_le_bytes(unit)
+                };
                 if let Some(c) = char::from_u32(word) {
                     text.push(c);
                 } else {
@@ -1212,7 +1210,7 @@ mod tests {
             [b"a".to_vec(), b"de".to_vec(), b"h".to_vec()]
         );
         // adjacent spans, and spans at either end, leave no empty run
-        assert!(runs(&[span(0, 2), span(2, 4), span(4, 8)]).is_empty());
+        assert_eq!(runs(&[span(0, 2), span(2, 4), span(4, 8)]).len(), 0);
         assert_eq!(runs(&[span(0, 4)]), [b"efgh".to_vec()]);
         assert_eq!(runs(&[span(4, 8)]), [b"abcd".to_vec()]);
         // a trailing run of UTF-8 after Kanji: rule 1d, as a leading one is

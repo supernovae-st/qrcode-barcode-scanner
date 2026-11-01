@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/supernovae-st/qrcode-ai-scanner/spec/scan-report.schema.json",
   "title": "ScanReport",
-  "description": "qrcode-ai-scanner wire contract (versions.pipeline=4, score_contract=5). Additive evolution: consumers must tolerate unknown fields and unknown enum/tag values.",
+  "description": "qrcode-ai-scanner wire contract (versions.pipeline=5, score_contract=5). Additive evolution: consumers must tolerate unknown fields and unknown enum/tag values.",
   "type": "object",
   "required": [
     "detections",
@@ -656,8 +656,162 @@
           "items": {
             "$ref": "#/$defs/EngineKind"
           }
+        },
+        "occurrences": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/Occurrence"
+          },
+          "description": "Where each physical copy of this content was measured, earliest observed first: identical copies are one detection with several occurrences. Exactly one unavailable occurrence when no reader measured where the content lies. Independent of corners, which keep their meaning (rqrr's grid frame, the score's sampling input). Pipeline 5 always writes it; absent on older reports."
         }
       }
+    },
+    "Occurrence": {
+      "type": "object",
+      "required": [
+        "geometry"
+      ],
+      "properties": {
+        "geometry": {
+          "$ref": "#/$defs/OccurrenceGeometry"
+        }
+      }
+    },
+    "OccurrenceGeometry": {
+      "type": "object",
+      "description": "What a reader measured of one symbol, in stored-pixel image coordinates (EXIF orientation is not applied), never completed, extended or reconstructed.",
+      "required": [
+        "kind",
+        "points",
+        "reader"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/GeometryKind"
+        },
+        "points": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/Point"
+          }
+        },
+        "reader": {
+          "description": "The reader that measured the points; null exactly when kind is unavailable.",
+          "anyOf": [
+            {
+              "enum": [
+                "rxing",
+                "rqrr"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "quad"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "points": {
+                "minItems": 4,
+                "maxItems": 4
+              },
+              "reader": {
+                "enum": [
+                  "rxing",
+                  "rqrr"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "segment"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "points": {
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "reader": {
+                "enum": [
+                  "rxing",
+                  "rqrr"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "partial"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "points": {
+                "minItems": 1,
+                "maxItems": 8
+              },
+              "reader": {
+                "enum": [
+                  "rxing",
+                  "rqrr"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "unavailable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "points": {
+                "maxItems": 0
+              },
+              "reader": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "GeometryKind": {
+      "description": "quad: four outer corners, finite, strictly convex, clockwise in image space, inside the image within max(2 px, 2% of its longer side); only for the QR family does the first corner mean the symbol's top-left. segment: two points along the reader's scan line, neither the symbol's extent nor its height. partial: points that form no validated quad or segment. unavailable: nothing measured.",
+      "enum": [
+        "quad",
+        "segment",
+        "partial",
+        "unavailable"
+      ]
     },
     "AxisScore": {
       "type": "object",
@@ -1031,6 +1185,32 @@
         "budget_exhausted": {
           "type": "boolean",
           "description": "Emitted by every report from score_contract 5 on. true: the wall-clock budget prevented planned work (a ladder attempt or stage, the opposite-background walk, a rescue candidate, a score calibration step or stress cell, a knee bisection, an envelope probe) - the report is partial. false: every planned unit ran - the report is final. Absent: a report older than score_contract 5 - unknown, never false."
+        },
+        "saturation": {
+          "$ref": "#/$defs/Saturation",
+          "description": "The capacities the scan reached, independent of budget_exhausted. A true flag means something past that capacity is unknown, never absent. Pipeline 5 always writes it; absent on older reports: unknown, never false."
+        }
+      }
+    },
+    "Saturation": {
+      "type": "object",
+      "required": [
+        "reads",
+        "detections",
+        "occurrences"
+      ],
+      "properties": {
+        "reads": {
+          "type": "boolean",
+          "description": "Distinct reads past the walk's capacity were counted, not reconciled."
+        },
+        "detections": {
+          "type": "boolean",
+          "description": "Contents past the 16 published detections were left out."
+        },
+        "occurrences": {
+          "type": "boolean",
+          "description": "A detection's occurrences are incomplete: footprints past a capacity, copies past 16, or copies kept together without their pixels compared."
         }
       }
     },
@@ -1047,7 +1227,7 @@
         },
         "pipeline": {
           "type": "integer",
-          "const": 4
+          "const": 5
         },
         "score_contract": {
           "type": "integer",

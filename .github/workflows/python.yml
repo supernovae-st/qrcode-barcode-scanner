@@ -28,7 +28,7 @@ env:
   # The toolchain CI tests (ci.yml RUST_TOOLCHAIN; RELEASING.md § toolchain),
   # handed to maturin-action, which installs it (inside the manylinux
   # container too). maturin pinned exact: the version PR CI already resolved.
-  RUST_TOOLCHAIN: "1.97.0"
+  RUST_TOOLCHAIN: "1.99.1"
   MATURIN_VERSION: v1.15.0
 
 defaults:

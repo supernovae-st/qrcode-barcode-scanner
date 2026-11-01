@@ -102,7 +102,9 @@ const report = scan_image(pngBytes, "fast");
 const ok = report.detections.length > 0;
 // null = no judgment, never a zero: with trace.budget_exhausted the budget
 // cut it (argument #5, budget_ms: 0 = unbounded, scans without a cut; the
-// clock starts once the image is decoded)
+// clock starts once the image is decoded). Out-of-domain numbers throw
+// [QRS-006]: a cap that is not a whole number from 1, a budget above
+// 4294967295 ms (spec/02-profiles.md § Option domains)
 const score = report.score?.value ?? null;
 const judged = report.score !== null || !report.trace.budget_exhausted;
 

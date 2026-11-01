@@ -106,7 +106,7 @@ fn score_only_under_frame_profile_is_usage_error_2() {
         Some(2),
         "score suppressed by profile = usage error"
     );
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     assert_eq!(
         String::from_utf8(out.stderr).unwrap(),
         "✖ the frame profile computes no score (use --profile full|fast)\n"
@@ -122,7 +122,7 @@ fn score_only_without_a_detection_is_exit_1_and_says_so() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(1));
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     assert_eq!(
         String::from_utf8(out.stderr).unwrap(),
         "no QR code found — no score\n"
@@ -145,7 +145,7 @@ fn score_only_with_every_axis_skipped_is_usage_error_2() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(2));
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     assert_eq!(
         String::from_utf8(out.stderr).unwrap(),
         "✖ every stress axis is skipped — no score to print (drop an axis from --score-skip-axes)\n"
@@ -436,7 +436,7 @@ fn every_category_report_validates_against_the_wire_schema() {
         );
         assert_eq!(
             report["versions"],
-            serde_json::json!({"scanner": env!("CARGO_PKG_VERSION"), "pipeline": 4, "score_contract": 5}),
+            serde_json::json!({"scanner": env!("CARGO_PKG_VERSION"), "pipeline": 5, "score_contract": 5}),
             "{rel}: versions block is the wire's compatibility anchor"
         );
     }

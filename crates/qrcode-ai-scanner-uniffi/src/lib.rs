@@ -161,7 +161,8 @@ fn profile_from(
 
 /// Optional input caps from the caller. Mobile embedders SHOULD lower them
 /// (the library default — 10000 px / 64 MP — is a desktop/CLI posture);
-/// violations reject BEFORE any pixel work (QRS-002 / QRS-003).
+/// violations reject BEFORE any pixel work (QRS-002 / QRS-003), and a zero
+/// cap before the input is read (QRS-006).
 fn limits_from(max_dimension: Option<u32>, max_pixels: Option<u64>) -> Limits {
     let mut limits = Limits::default();
     if let Some(dim) = max_dimension {

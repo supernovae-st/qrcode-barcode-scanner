@@ -3,6 +3,7 @@
 // copies it into pkg/). The Rust side of this contract is pinned by the
 // insta schema snapshots in crates/qrcode-ai-scanner/src/report.rs.
 
+/** Stored-pixel image coordinates, y down: pixel (i, j) spans [i, i+1) × [j, j+1). */
 export interface Point { x: number; y: number }
 /**
  * Barcode symbology. The QR family (qr_code · micro_qr_code ·
@@ -108,6 +109,35 @@ export interface Detection {
   corners: [Point, Point, Point, Point] | null;
   meta: QrMeta;
   engines: EngineKind[];
+  /**
+   * Where each physical copy of this content was measured (spec/01 § Occurrences): 1 to 16, earliest observed
+   * first. Two printed copies of one content are ONE detection with two occurrences. Pipeline 5 always writes it;
+   * absent on older reports. Independent of corners (rqrr's grid frame, the score's sampling input).
+   */
+  occurrences?: Occurrence[];
+}
+
+/**
+ * quad: four outer corners — finite, strictly convex, clockwise in image space (y down), inside the image within
+ * max(2 px, 2% of its longer side); for the QR family the first corner is the symbol's origin (its top-left
+ * finder's outer corner) in every rotation, mirrored or not. segment: two points along the scan line, x-then-y
+ * ordered — neither the symbol's extent nor its height. partial: points forming no validated quad or segment.
+ * unavailable: nothing measured. Parse leniently: later versions may add kinds.
+ */
+export type GeometryKind = "quad" | "segment" | "partial" | "unavailable";
+
+/** What a reader measured of one symbol — never completed, extended or reconstructed. */
+export interface OccurrenceGeometry {
+  kind: GeometryKind;
+  /** quad 4 · segment 2 · partial 1–8 · unavailable none. */
+  points: Point[];
+  /** The decoder that measured the points (never "rescue": a rescued grid is rqrr's). null exactly when unavailable. */
+  reader: EngineKind | null;
+}
+
+/** One physical copy of a detection's content. */
+export interface Occurrence {
+  geometry: OccurrenceGeometry;
 }
 
 export interface AxisScore {
@@ -294,6 +324,18 @@ export interface PipelineTrace {
   total_ms: number;
   /** true: the budget cut planned work (partial). false: final. Absent before score_contract 5 (unknown); test === false. */
   budget_exhausted?: boolean;
+  /** The capacities the scan reached, whatever the budget. Absent before pipeline 5 (unknown, never false). */
+  saturation?: Saturation;
+}
+
+/** A true flag: what that capacity left out is unknown, not absent (spec/01 § PipelineTrace). */
+export interface Saturation {
+  /** Distinct reads past a walk's 64 were counted, not reconciled, or the refusal records failed closed. */
+  reads: boolean;
+  /** Contents past the 16 published detections were left out. */
+  detections: boolean;
+  /** Some detection's occurrences are incomplete: copies past a capacity, or copies kept together unproven. */
+  occurrences: boolean;
 }
 export interface Versions { scanner: string; pipeline: number; score_contract: number }
 

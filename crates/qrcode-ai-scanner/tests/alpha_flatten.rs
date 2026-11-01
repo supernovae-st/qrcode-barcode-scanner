@@ -222,7 +222,7 @@ fn envelope_reads_light_only_for_a_dark_design() {
         .as_ref()
         .expect("full profile sweeps the envelope");
     assert_eq!(envelope.placement, AlphaPlacement::LightOnly);
-    assert!(!envelope.safe_luma.is_empty());
+    assert_ne!(envelope.safe_luma.len(), 0);
     let last = envelope.safe_luma.last().unwrap();
     assert_eq!(last[1], 255, "the lightest tested background decodes");
     assert!(
@@ -481,7 +481,7 @@ fn fully_transparent_input_is_a_calm_empty_report() {
     let report = Scanner::default()
         .scan(ImageInput::encoded(&bytes))
         .unwrap();
-    assert!(report.detections.is_empty());
+    assert_eq!(report.detections.len(), 0);
     let alpha = report.alpha.as_ref().unwrap();
     assert_eq!(alpha.coverage, 1.0);
     assert_eq!(

@@ -9,23 +9,79 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
 ### Fixed
 
 - A QR code found in the downscaled pyramid no longer suppresses a readable
-  neighboring linear barcode. A budgeted linear-only read at input resolution
+  neighboring barcode or small matrix code. One budgeted non-QR read at input resolution
   completes QR pyramid results before the early return.
   Regression coverage retains `STOCK-4827` beside a QR in fast, frame and full
-  profiles, including both browser WASM variants. Detection identity, QR quality
-  scoring and wire fields remain unchanged; `versions.pipeline` advances to 4.
+  profiles, including the existing browser WASM checks, and adds native exact
+  QR/Data Matrix coverage in both placements. Detection identity and QR quality
+  scoring remain unchanged. This completion is pipeline 4's change; the release
+  publishes pipeline 5 with occurrences (below).
+- Equal printed copies of one linear content are no longer collapsed into one
+  read. The scanner's copy of rxing 0.9.3's multiple-barcode reader
+  (`src/engine/multi_reader.rs`, Apache-2.0 notices kept, `THIRD-PARTY.md`)
+  decides duplicates by kind of symbol and by the image's pixels instead of
+  point count, normalizes every read's points into the image's frame, reads a
+  node again past a read without points, uses one fixed reader order and a
+  fresh reader state for each read. All three rxing entry points use it: the
+  unrestricted, family and single-format passes; the local DataBar Expanded
+  reader; and the rMQR-only pass of score cells and envelope probes.
+- The S5 rescue keeps identically damaged twins at different places as
+  separate candidates and rescues each place, instead of stopping at the
+  first recovered stream.
+- An unparsed QR Code read that stands publishes no copy where a refusal of
+  its content was placed: a copy proved malformed is never an occurrence.
+- The DataBar Expanded reader clears the rows of its upright pass before the
+  rotated pass, so it never assembles a symbol from rows of two frames.
 - Preserved the console candidate's Code 93 checksum rejection, small DataBar
   decoding and guarded DataBar Expanded recovery. The consolidated rxing 0.9.3
   adapter retains the local Expanded reader with its Apache-2.0 notices, valid
   positive fixtures and illegal finder-sequence negative vector.
-- The complementary linear pass masks only measured regions of already admitted
+- The complementary non-QR pass masks only measured regions of already admitted
   QR symbols on its cloned plane. This avoids the false Code 39 `J` read from an
   artistic QR's module texture while retaining genuine Code 39 symbols,
   including a one-character `J` alone and beside a QR. Ordinary Code 39 admission
   and scoring on the original image remain unchanged.
+- Node and WASM read `budget_ms`, `max_dimension` and `max_pixels` the same
+  way (`spec/02-profiles.md` § Option domains). Reproduced on the installed
+  0.10.1 packages: Node's integer conversions wrapped `budgetMs: 4294967297`
+  to a 1 ms budget, ran `budgetMs: 0.5` unbounded, turned `maxDimension: -1`
+  into no size cap and refused every image on `maxPixels: NaN` or `Infinity`;
+  WASM ran `budget_ms: 1e300` without a practical bound, also lifted the size
+  cap on `max_dimension: -1`, and replaced `max_pixels: 0` or `NaN` by the
+  default cap and `Infinity` by none. Both now take doubles through one
+  mapping, and the same table of cases passes on both packages.
+- A zero `max_dimension` or `max_pixels` is an option error (`QRS-006`) on
+  every surface, no longer a `QRS-002`/`QRS-003` that blamed every image.
 
 ### Added
 
+- `QRS-006` InvalidOption: an option outside its domain, refused before the
+  input is read, so it is reported beside unreadable bytes too.
+  `ScanConfig::MAX_BUDGET_MS`, `ScanConfig::validate`, `Limits::validate` and
+  the `options` module (the JavaScript number mapping both JS packages use)
+  are public. The scan deadline uses checked arithmetic: an unrepresentable
+  deadline would be `QRS-006`, never a panic or an unbounded scan. The
+  suspected native overflow did not reproduce: `Instant + u64::MAX ms` is
+  representable on the native clocks, and a test keeps that observation.
+- **Occurrences** (`versions.pipeline` 4 → 5). Every detection carries
+  `occurrences`: where each physical copy of its content was measured, 1 to
+  16, earliest observed first. Two printed copies of one content are one
+  detection with two occurrences, never two detections. Each geometry is what a
+  reader measured, never completed: `quad` (validated outer corners, clockwise;
+  for the QR family the first is the symbol's origin corner in every rotation,
+  mirrored or not), `segment` (a linear reader's scan-line points), `partial`
+  or `unavailable`, with the `reader` that measured it. rqrr's quads are
+  corrected for its pixel-anchor bias, exact at the quarter turns; `corners`,
+  `meta` and the score keep their meaning. Copies are grouped by geometry and,
+  for linear symbols, by the pixels between scan lines; a pair that cannot be
+  decided is never split into an invented copy and is flagged. Rules:
+  `spec/01-report.md` § Occurrences.
+- `trace.saturation` reports the capacities a scan reached, whatever the budget:
+  reads past a walk's capacity or refusal records that failed closed,
+  contents past the 16 published detections, incomplete occurrences. A set flag
+  means what was left out is unknown, not absent. Both new keys are absent from
+  older reports; the JSON Schema, TypeScript, Dart and type-parity gate cover
+  them.
 - The browser package's `/camera` entry exports a measured-geometry tracker,
   normalized video projection and a camera capture controller. It supports
   frame callbacks, serialized worker decoding, cancellation of late permission
@@ -38,9 +94,27 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
 
 ### Changed
 
+- Pin rqrr 0.11.0 for corrected mixed-size Reed-Solomon block deinterleaving
+  and truncated character-count rejection. Independently encoded regressions
+  preserve exact scanner content and verify restored rqrr consensus; the
+  scanner's existing strict parser continues to reject malformed prefixes.
+- Build and CI compiler pins use Rust 1.99.1. The minimum supported Rust
+  version remains 1.88; typed slice chunks and C buffer declarations match
+  the compiler checks without suppressing warnings.
 - Consolidated the compatible WASM/automatic loader and exact historical registry
   probes from the 0.10.1 branch. The historical probes remain separately named;
   they do not qualify 0.11.0 registry publication.
+- Cleared open dependency advisories outside the scanner's own graph: the
+  Flutter Rust lock moves tokio 1.34.0 to 1.38.2 (GHSA-rr8g-9fpq-6wmg), the
+  packed Python consumer suite pins Pillow 13.0.0 with every wheel hashed
+  (it needs Python 3.11, the consumer matrix's floor), and the browser test
+  host and playground resolve vite 6.4.4, postcss 8.5.31 and source-map-js 1.2.2.
+- **Upgrade note.** A `budget_ms` above 4 294 967 295 ms (about 49.7 days) is
+  refused with `QRS-006` in Rust, Python and Kotlin/Swift, which accepted any
+  `u64` before: this is the range the CLI and Node already carried. Unbounded
+  stays `0` in the bindings and `None` in Rust. In Node and WASM a fractional
+  `max_dimension`/`max_pixels` is refused instead of truncated, and a
+  negative one instead of becoming no cap or the default.
 
 ## 0.10.1 — 2026-10-20
 

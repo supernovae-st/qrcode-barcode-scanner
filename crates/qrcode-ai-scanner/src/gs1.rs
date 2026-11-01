@@ -621,7 +621,7 @@ mod tests {
     #[test]
     fn digital_link_works_on_any_domain() {
         let dl = parse_digital_link("https://qrc-ai.com/01/09506000134352").expect("DL");
-        assert!(dl.issues.is_empty());
+        assert_eq!(dl.issues.len(), 0);
         assert_eq!(dl.gtin.as_deref(), Some("09506000134352"));
     }
 
@@ -794,9 +794,12 @@ mod tests {
 
         // Conformant values of each shape raise NO issue (proves the asserts
         // above pin the violation, not a validator that flags everything).
-        assert!(issues("20", "42", Shape::Digits(2)).is_empty());
-        assert!(issues("01", "09506000134352", Shape::DigitsCheck(14)).is_empty());
-        assert!(issues("30", "12345", Shape::VarDigits(8)).is_empty());
+        assert_eq!(issues("20", "42", Shape::Digits(2)).len(), 0);
+        assert_eq!(
+            issues("01", "09506000134352", Shape::DigitsCheck(14)).len(),
+            0
+        );
+        assert_eq!(issues("30", "12345", Shape::VarDigits(8)).len(), 0);
     }
 
     #[test]

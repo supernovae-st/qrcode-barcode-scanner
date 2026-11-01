@@ -110,7 +110,12 @@ pub(crate) fn normalize_with(
             height,
         } => {
             let pixels = validate_dims(width, height, limits)?;
-            validate_buffer(data.len(), pixels * 4)?;
+            let bytes = pixels.checked_mul(4).ok_or(ScanError::PixelOverflow {
+                width,
+                height,
+                max_pixels: limits.max_pixels,
+            })?;
+            validate_buffer(data.len(), bytes)?;
             // browser ImageData is color by contract — RGB always retained
             Ok(flatten_or_drop(data, width, height, alpha_background, true))
         }
@@ -204,7 +209,7 @@ fn flatten_or_drop(
     }
     let mut luma = Vec::with_capacity(data.len() / 4);
     let mut rgb = Vec::with_capacity(data.len() / 4 * 3);
-    for px in data.chunks_exact(4) {
+    for px in data.as_chunks::<4>().0 {
         luma.push(bt601(px[0], px[1], px[2]));
         rgb.extend_from_slice(&px[..3]);
     }
@@ -241,7 +246,7 @@ fn flatten(
     let mut rgb = colored.then(|| Vec::with_capacity(pixels * 3));
     let mut fg_luma = Vec::with_capacity(pixels);
     let mut alpha_plane = Vec::with_capacity(pixels);
-    for px in data.chunks_exact(4) {
+    for px in data.as_chunks::<4>().0 {
         let a = px[3];
         let (r, g, b) = (
             crate::alpha::composite(px[0], bg[0], a),
@@ -369,7 +374,9 @@ pub(crate) fn downscale_to(img: &LumaImage, max_side: u32) -> LumaImage {
     let new_h = (u64::from(h) * u64::from(max_side) / u64::from(longest)).max(1) as u32;
 
     let src = img.data();
-    let mut data = Vec::with_capacity((new_w * new_h) as usize);
+    // Index arithmetic in usize: the admitted limits allow a source above
+    // u32::MAX pixels (`max_pixels` is a u64), where a u32 product wraps.
+    let mut data = Vec::with_capacity(new_w as usize * new_h as usize);
     for oy in 0..new_h {
         let y0 = (u64::from(oy) * u64::from(h) / u64::from(new_h)) as u32;
         let y1 =
@@ -380,7 +387,7 @@ pub(crate) fn downscale_to(img: &LumaImage, max_side: u32) -> LumaImage {
                 as u32;
             let mut sum = 0u64;
             for y in y0..y1 {
-                let row = (y * w) as usize;
+                let row = y as usize * w as usize;
                 for x in x0..x1 {
                     sum += u64::from(src[row + x as usize]);
                 }

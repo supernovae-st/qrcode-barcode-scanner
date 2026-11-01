@@ -916,6 +916,7 @@ mod tests {
             fnc1: false,
             photometric_inverted: false,
             engines: vec![crate::report::EngineKind::Rqrr],
+            occurrences: vec![crate::engine::occurrence::Footprint::unavailable()],
         }
     }
 

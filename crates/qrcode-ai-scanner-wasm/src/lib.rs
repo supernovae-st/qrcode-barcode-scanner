@@ -6,11 +6,16 @@
 //! `raw` as base64) — identical shape to the server/CLI surfaces.
 
 use qrcode_ai_scanner::{
-    AlphaBackground, ImageInput, Limits, ScanConfig, ScanProfile, Scanner, ScoreCheck, ScorePreset,
-    StressAxis,
+    AlphaBackground, ImageInput, Limits, ScanConfig, ScanError, ScanProfile, Scanner, ScoreCheck,
+    ScorePreset, StressAxis, options,
 };
 use serde::Serialize as _;
 use wasm_bindgen::prelude::*;
+
+/// `QRS-xxx` lands in the message — consumers match `[QRS-...]`.
+fn scan_error(e: &ScanError) -> JsError {
+    JsError::new(&format!("{} [{}]", e, e.code()))
+}
 
 fn config_from(
     name: Option<String>,
@@ -120,8 +125,14 @@ fn config_from(
     // wasm runs the scan ON the caller's thread (browser main thread unless
     // the embedder uses a worker) — budget control is how a verify-while-
     // typing UI keeps the worst case bounded without giving up the deep
-    // ladder. 0/negative = unbounded (the reproducible mode); unset keeps
-    // the profile default. A cut report says so (`trace.budget_exhausted`).
+    // ladder. 0/negative/NaN/+Infinity = unbounded (the reproducible mode);
+    // a positive value is floored to whole ms; above the maximum is
+    // QRS-006; unset keeps the profile default. A cut report says so
+    // (`trace.budget_exhausted`).
+    let budget_ms = budget_ms
+        .map(options::budget_ms_from_number)
+        .transpose()
+        .map_err(|e| scan_error(&e))?;
     if budget_ms.is_none()
         && skip.is_empty()
         && checks.is_empty()
@@ -131,13 +142,8 @@ fn config_from(
         return Ok(profile);
     }
     let mut config: ScanConfig = profile.config();
-    #[expect(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "JS number → milliseconds; non-positive means unbounded"
-    )]
     if let Some(ms) = budget_ms {
-        config.budget_ms = (ms > 0.0).then_some(ms as u64);
+        config.budget_ms = ms;
     }
     config.score_skip_axes = skip;
     config.score_skip_checks = checks;
@@ -148,37 +154,32 @@ fn config_from(
     Ok(ScanProfile::Custom(config))
 }
 
-fn limits_from(max_dimension: Option<u32>, max_pixels: Option<f64>) -> Limits {
+/// The input caps from JS numbers: a whole number from 1 (`max_dimension`
+/// to `u32::MAX`, `max_pixels` to `Number.MAX_SAFE_INTEGER`), anything else
+/// QRS-006 — never a wrapped, truncated, defaulted or disabled cap.
+fn limits_from(max_dimension: Option<f64>, max_pixels: Option<f64>) -> Result<Limits, JsError> {
     let mut limits = Limits::default();
     if let Some(dim) = max_dimension {
-        limits.max_dimension = dim;
+        limits.max_dimension =
+            options::max_dimension_from_number(dim).map_err(|e| scan_error(&e))?;
     }
-    #[expect(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "JS number → pixel count; negative/fractional clamp to 0 is fine"
-    )]
-    if let Some(px) = max_pixels
-        && px > 0.0
-    {
-        limits.max_pixels = px as u64;
+    if let Some(px) = max_pixels {
+        limits.max_pixels = options::max_pixels_from_number(px).map_err(|e| scan_error(&e))?;
     }
-    limits
+    Ok(limits)
 }
 
 fn run_scan(
     input: ImageInput<'_>,
     profile: ScanProfile,
-    max_dimension: Option<u32>,
+    max_dimension: Option<f64>,
     max_pixels: Option<f64>,
 ) -> Result<JsValue, JsError> {
     let scanner = Scanner::builder()
         .profile(profile)
-        .limits(limits_from(max_dimension, max_pixels))
+        .limits(limits_from(max_dimension, max_pixels)?)
         .build();
-    let report = scanner
-        .scan(input)
-        .map_err(|e| JsError::new(&format!("{} [{}]", e, e.code())))?;
+    let report = scanner.scan(input).map_err(|e| scan_error(&e))?;
     // None → null (not undefined): one contract across wasm/napi/CLI surfaces
     let serializer = serde_wasm_bindgen::Serializer::new().serialize_missing_as_null(true);
     report
@@ -187,9 +188,12 @@ fn run_scan(
 }
 
 /// Scan encoded image bytes (PNG/JPEG/WebP/GIF). Profile: full | fast |
-/// frame. `budget_ms` overrides the profile's wall-clock budget (the scan
-/// runs synchronously on the calling thread — bound it in UI contexts;
-/// `0` = unbounded, unset = the profile default). A report the budget cut
+/// frame. `max_dimension` / `max_pixels` cap the input (whole numbers from
+/// 1; anything else rejects `[QRS-006]`). `budget_ms` overrides the
+/// profile's wall-clock budget (the scan runs synchronously on the calling
+/// thread — bound it in UI contexts; `0`, a negative, `NaN` or `Infinity` =
+/// unbounded, a fraction floors to whole ms, above 4294967295 rejects
+/// `[QRS-006]`, unset = the profile default). A report the budget cut
 /// says so (`trace.budget_exhausted: true`): a `null` score beside
 /// detections then means "not judged", never 0.
 /// `score_skip_axes` (wire names, e.g. `["perspective","rotation"]`)
@@ -213,7 +217,7 @@ fn run_scan(
 pub fn scan_image(
     bytes: &[u8],
     profile: Option<String>,
-    max_dimension: Option<u32>,
+    max_dimension: Option<f64>,
     max_pixels: Option<f64>,
     budget_ms: Option<f64>,
     score_skip_axes: Option<Vec<String>>,
@@ -240,7 +244,8 @@ pub fn scan_image(
 
 /// Scan a raw RGBA8 frame (`ImageData.data`, width, height). Defaults to the
 /// `frame` profile (decode-only, tight budget) — pass another to override.
-/// `budget_ms` overrides the profile's wall-clock budget.
+/// `budget_ms` overrides the profile's wall-clock budget, in the same
+/// domain as [`scan_image`]'s.
 #[wasm_bindgen]
 pub fn scan_frame(
     data: &[u8],
