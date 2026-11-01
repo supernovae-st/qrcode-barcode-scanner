@@ -55,6 +55,10 @@ pub(crate) enum Kind {
     /// Points that form no validated quad or segment.
     Partial,
     /// The reader's scan-line points.
+    #[cfg_attr(
+        not(feature = "engine-rxing"),
+        allow(dead_code, reason = "only rxing's linear readers measure a scan line")
+    )]
     Segment,
     /// Four validated outer corners.
     Quad,
@@ -264,6 +268,10 @@ pub(crate) fn clockwise_quad(points: &[Point]) -> Option<[Point; 4]> {
 }
 
 /// One pixel of the plane a reader measured on, in that plane's space.
+#[cfg_attr(
+    not(feature = "engine-rqrr"),
+    allow(dead_code, reason = "only rqrr's grids are measured on the unit pixel")
+)]
 pub(crate) const UNIT_PIXEL: Point = Point { x: 1.0, y: 1.0 };
 
 /// The footprint of a grid rqrr detected, from its bounds: the symbol's

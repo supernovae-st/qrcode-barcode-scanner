@@ -377,6 +377,13 @@ pub(crate) enum Unverified {
     NothingVerifies,
     /// Both orientations error-correct, to different results (crafted
     /// grids): nothing is decided either way.
+    #[cfg_attr(
+        not(feature = "engine-rqrr"),
+        allow(
+            dead_code,
+            reason = "only rqrr's grids are re-derived in both orientations"
+        )
+    )]
     Ambiguous,
 }
 

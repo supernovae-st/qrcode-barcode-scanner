@@ -65,6 +65,10 @@ pub(crate) enum Frame {
     OuterCorners,
     /// rqrr's grid bounds, which span `N + 1` module cells (quirc heritage,
     /// `matrix::sampler`).
+    #[cfg_attr(
+        not(feature = "engine-rqrr"),
+        allow(dead_code, reason = "only rqrr's reads frame the grid by its bounds")
+    )]
     GridBounds,
 }
 

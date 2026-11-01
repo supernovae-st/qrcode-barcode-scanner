@@ -592,6 +592,7 @@ mod tests {
     // modules), never from a reader.
 
     /// The validated footprints every engine measures on `luma`.
+    #[cfg(feature = "engine-rxing")]
     fn footprints(luma: &LumaImage) -> Vec<(EngineKind, Symbology, occurrence::Footprint)> {
         decode_all(luma)
             .detections
@@ -605,6 +606,7 @@ mod tests {
 
     /// A committed fixture as luma, turned clockwise by `quarters` quarter
     /// turns.
+    #[cfg(feature = "engine-rxing")]
     fn turned(bytes: &[u8], quarters: u8) -> LumaImage {
         let image = image::load_from_memory(bytes).unwrap().to_luma8();
         let image = match quarters % 4 {
@@ -620,6 +622,7 @@ mod tests {
     /// `luma` mirrored left to right when `turn` ≥ 4, then turned clockwise
     /// `turn % 4` quarter turns — with the motion of a point (pixel edges
     /// at integers) under the same transformation.
+    #[cfg(all(feature = "engine-rxing", feature = "engine-rqrr"))]
     fn oriented(luma: &LumaImage, turn: u8) -> (LumaImage, impl Fn((f32, f32)) -> (f32, f32)) {
         let (width, height) = (luma.width(), luma.height());
         let image = image::GrayImage::from_raw(width, height, luma.data().to_vec()).unwrap();
@@ -694,6 +697,7 @@ mod tests {
     }
 
     /// Whether `c` is the centre of a pixel row or column.
+    #[cfg(feature = "engine-rxing")]
     fn on_centre(c: f32) -> bool {
         (c - c.floor() - 0.5).abs() < 1e-4
     }
