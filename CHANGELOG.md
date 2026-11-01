@@ -104,6 +104,11 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
 - Consolidated the compatible WASM/automatic loader and exact historical registry
   probes from the 0.10.1 branch. The historical probes remain separately named;
   they do not qualify 0.11.0 registry publication.
+- Cleared open dependency advisories outside the scanner's own graph: the
+  Flutter Rust lock moves tokio 1.34.0 to 1.38.2 (GHSA-rr8g-9fpq-6wmg), the
+  packed Python consumer suite pins Pillow 13.0.0 with every wheel hashed
+  (it needs Python 3.11, the consumer matrix's floor), and the browser test
+  host and playground resolve vite 6.4.4, postcss 8.5.31 and source-map-js 1.2.2.
 - **Upgrade note.** A `budget_ms` above 4 294 967 295 ms (about 49.7 days) is
   refused with `QRS-006` in Rust, Python and Kotlin/Swift, which accepted any
   `u64` before: this is the range the CLI and Node already carried. Unbounded
