@@ -155,6 +155,51 @@ def test_generous_limits_still_decode():
     assert texts(report) == [V5Q_TEXT]
 
 
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("max_dimension", 0),
+        ("max_pixels", 0),
+        ("budget_ms", 2**32),
+        ("budget_ms", 2**64 - 1),
+    ],
+)
+def test_an_option_outside_its_domain_is_qrs_006_before_the_input(option, value):
+    # spec/02-profiles.md § Option domains: a zero cap refuses every image and
+    # a budget above 4294967295 ms is beyond the portable range, so both are
+    # the option's error — checked before the bytes, which never turn it into
+    # QRS-001, QRS-002 or QRS-003.
+    for image in (V5Q.read_bytes(), b"not an image"):
+        with pytest.raises(ValueError, match=rf"^invalid option `{option}`: .* \[QRS-006\]$"):
+            qr.scan(image, "fast", **{option: value})
+
+
+def test_the_domain_ceilings_are_admitted():
+    # the largest budget and caps are values, not errors (budget 0 = unbounded)
+    for options in ({"budget_ms": 2**32 - 1}, {"max_dimension": 2**32 - 1}, {"max_pixels": 2**64 - 1}):
+        report = qr.scan(V5Q.read_bytes(), "fast", **{"budget_ms": 0, **options})
+        assert (texts(report), report["trace"]["budget_exhausted"]) == ([V5Q_TEXT], False), options
+
+
+@pytest.mark.parametrize(
+    ("option", "value", "error"),
+    [
+        ("max_dimension", -1, OverflowError),
+        ("max_dimension", 2**32, OverflowError),
+        ("max_pixels", -1, OverflowError),
+        ("budget_ms", -1, OverflowError),
+        ("budget_ms", 2**64, OverflowError),
+        ("max_dimension", 1.5, TypeError),
+        ("budget_ms", 0.5, TypeError),
+    ],
+)
+def test_a_value_the_integer_types_cannot_hold_is_refused_by_conversion(option, value, error):
+    # Python passes integers: a negative, an oversized int or a float never
+    # reaches the scanner as a wrapped or truncated number.
+    with pytest.raises(error):
+        qr.scan(V5Q.read_bytes(), "fast", **{option: value})
+
+
 def test_budget_zero_is_unbounded():
     # 0 = unbounded (NOT a zero-millisecond budget) — the cross-binding convention
     # from spec/02. The full profile scores a pristine EC-Q symbol completely.
@@ -202,6 +247,9 @@ def test_scan_frame_accepts_budget():
     report = qr.scan_frame(im.tobytes(), im.width, im.height, "frame", budget_ms=600_000)
     assert texts(report) == [V5Q_TEXT]
     assert report["score"] is None  # the frame profile never scores
+    # the frame path shares the budget domain, checked before the pixels
+    with pytest.raises(ValueError, match=r"^invalid option `budget_ms`: .* \[QRS-006\]$"):
+        qr.scan_frame(b"", 1, 1, "frame", budget_ms=2**32)
 
 
 @pytest.mark.skipif(

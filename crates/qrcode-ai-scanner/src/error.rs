@@ -62,6 +62,20 @@ pub enum ScanError {
     #[error("scan cancelled")]
     #[diagnostic(code("QRS-005"))]
     Cancelled,
+
+    /// QRS-006 — an option value outside its domain, refused before the
+    /// input is read.
+    #[error("invalid option `{option}`: {reason}")]
+    #[diagnostic(
+        code("QRS-006"),
+        help("each option's domain is in spec/02-profiles.md; fix the call, not the input")
+    )]
+    InvalidOption {
+        /// The option's wire name (`budget_ms`, `max_dimension`, …).
+        option: String,
+        /// Why the value is refused.
+        reason: String,
+    },
 }
 
 impl ScanError {
@@ -74,6 +88,15 @@ impl ScanError {
             Self::PixelOverflow { .. } => "QRS-003",
             Self::BufferMismatch { .. } => "QRS-004",
             Self::Cancelled => "QRS-005",
+            Self::InvalidOption { .. } => "QRS-006",
+        }
+    }
+
+    /// An [`ScanError::InvalidOption`] for `option`.
+    pub(crate) fn invalid_option(option: &str, reason: impl Into<String>) -> Self {
+        Self::InvalidOption {
+            option: option.to_owned(),
+            reason: reason.into(),
         }
     }
 
@@ -112,6 +135,10 @@ mod tests {
                 expected: 16,
             },
             ScanError::Cancelled,
+            ScanError::InvalidOption {
+                option: "budget_ms".into(),
+                reason: "above the maximum".into(),
+            },
         ]
     }
 
@@ -147,7 +174,9 @@ mod tests {
         let pinned: Vec<&str> = all_variants().iter().map(ScanError::code).collect();
         assert_eq!(
             pinned,
-            vec!["QRS-001", "QRS-002", "QRS-003", "QRS-004", "QRS-005"],
+            vec![
+                "QRS-001", "QRS-002", "QRS-003", "QRS-004", "QRS-005", "QRS-006"
+            ],
             "wire codes are a published contract — never renumber"
         );
     }

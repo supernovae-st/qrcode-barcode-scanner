@@ -67,10 +67,14 @@ const frame = scan_frame(new Uint8Array(img.data.buffer),
 <Warning>
 The scan runs **synchronously on the calling thread**. In UI contexts
 either pass `budget_ms` (the verify flow uses 1500 ms) or move the call
-into a Web Worker. `budget_ms: 0` (or any value that is not above 0, NaN
-included) means unbounded (reproducible); unset keeps the profile default.
-A fractional budget is truncated to whole milliseconds, so a value strictly
-between 0 and 1 cuts the scan before its first stage. The budget clock
+into a Web Worker. `budget_ms: 0` (or a negative, `NaN` or `Infinity`)
+means unbounded (reproducible); unset keeps the profile default. A
+fractional budget floors to whole milliseconds, so a value strictly between
+0 and 1 cuts the scan before its first stage; above 4294967295 throws
+`[QRS-006]`. `max_dimension` / `max_pixels` take a whole number from 1 (to
+4294967295 / `Number.MAX_SAFE_INTEGER`); `0`, a negative, a fraction, `NaN`
+or an infinity throws `[QRS-006]`, never a wrapped or disabled cap
+(`spec/02-profiles.md` § Option domains). The budget clock
 starts once the image is decoded and normalized, so decoding a large image
 is bounded by `max_dimension` and `max_pixels`, not by `budget_ms`; the
 budget then stops planned work at attempt granularity, and the bounded

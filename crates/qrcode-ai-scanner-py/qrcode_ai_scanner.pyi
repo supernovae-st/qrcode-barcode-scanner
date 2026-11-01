@@ -72,10 +72,11 @@ def scan(
 
     profile: ``"full"`` (quality gate) | ``"fast"`` (upload) | ``"frame"`` (no scoring).
     max_dimension / max_pixels: optional input-size caps (defaults 10000 px / 64M px) —
-    raise for huge images, lower to harden a server against adversarial input.
+    raise for huge images, lower to harden a server against adversarial input. A zero
+    cap raises ``ValueError`` ending ``[QRS-006]`` before the image is read.
     budget_ms: overrides the profile's wall-clock budget; ``0`` = unbounded (NOT a
-    zero-millisecond budget). Unset keeps the profile default (full 4000 · fast 800
-    · frame 80 ms). With a budget, where the run cuts is machine-dependent and a
+    zero-millisecond budget); above 4294967295 raises ``[QRS-006]``. Unset keeps the
+    profile default (full 4000 · fast 800 · frame 80 ms). With a budget, where the run cuts is machine-dependent and a
     cut report says so (``trace["budget_exhausted"]``) — strictly reproducible
     reports need ``budget_ms=0`` (spec/02).
     score_skip_axes: stress axes excluded from scoring, engine-side (wire names,

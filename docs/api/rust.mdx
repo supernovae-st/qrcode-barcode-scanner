@@ -89,9 +89,15 @@ Two detections denote the same content when symbology, `raw`, `fnc1` and
 
 ### Errors
 
-`ScanError` (`thiserror` + `miette`): `.code()` → `"QRS-001"…"QRS-005"`
+`ScanError` (`thiserror` + `miette`): `.code()` → `"QRS-001"…"QRS-006"`
 ([catalog](/api/errors)). Pattern-match the code, not the variant — the
-enum is `#[non_exhaustive]`.
+enum is `#[non_exhaustive]`. `QRS-006` is an option outside its domain —
+a zero `Limits` cap, a zero side, a palette above
+`ScanConfig::MAX_ALPHA_PALETTE` or a `budget_ms` above
+`ScanConfig::MAX_BUDGET_MS` (4 294 967 295 ms) — refused before the input
+is read. `ScanConfig::validate` and `Limits::validate` run the same check
+ahead of a scan; `qrcode_ai_scanner::options` maps a JavaScript number
+onto these domains (the WASM and Node bindings use it).
 
 ## Type surface
 

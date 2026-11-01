@@ -68,7 +68,10 @@ def handle_upload(image_bytes: bytes) -> dict:
 
 `budget_ms` overrides the profile's wall-clock budget: unset keeps the
 profile default (full 4000 · fast 800 · frame 80 ms), `0` is unbounded and
-the only strictly reproducible mode. The clock starts once the image is
+the only strictly reproducible mode; above 4294967295 ms, or a zero
+`max_dimension` / `max_pixels`, raises `ValueError` ending `[QRS-006]`
+before the image is read (`spec/02-profiles.md` § Option domains). The
+clock starts once the image is
 decoded and normalized; `max_dimension` and `max_pixels` bound the decode.
 A report the budget cut says so —
 `report["trace"]["budget_exhausted"]` is `True` — and is partial: empty

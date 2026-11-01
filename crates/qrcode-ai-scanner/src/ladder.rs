@@ -317,6 +317,56 @@ impl ScanConfig {
     /// 32 covers any real theme/brand palette with headroom.
     pub const MAX_ALPHA_PALETTE: usize = 32;
 
+    /// The largest `budget_ms` a scan accepts: 4 294 967 295 ms (about 49.7
+    /// days), the one range every binding can carry exactly and every
+    /// platform clock can add to now. A larger budget is refused
+    /// (`QRS-006`), never silently made unbounded.
+    pub const MAX_BUDGET_MS: u64 = 4_294_967_295;
+
+    /// Refuse a configuration no scan can honour (`QRS-006`), before any
+    /// input is read: a budget above [`ScanConfig::MAX_BUDGET_MS`], a zero
+    /// pyramid or engine side, a palette above
+    /// [`ScanConfig::MAX_ALPHA_PALETTE`]. [`crate::Scanner::scan`] checks it
+    /// first.
+    ///
+    /// # Errors
+    /// `QRS-006` naming the first option out of its domain.
+    pub fn validate(&self) -> crate::Result<()> {
+        if let Some(ms) = self.budget_ms
+            && ms > Self::MAX_BUDGET_MS
+        {
+            return Err(crate::ScanError::invalid_option(
+                "budget_ms",
+                format!(
+                    "{ms} ms is above the maximum {} ms (no budget = unbounded)",
+                    Self::MAX_BUDGET_MS
+                ),
+            ));
+        }
+        for (option, side) in [
+            ("pyramid_side", self.pyramid_side),
+            ("max_engine_side", self.max_engine_side),
+        ] {
+            if side == 0 {
+                return Err(crate::ScanError::invalid_option(
+                    option,
+                    "a side of 0 pixels; the smallest is 1",
+                ));
+            }
+        }
+        if self.alpha_palette.len() > Self::MAX_ALPHA_PALETTE {
+            return Err(crate::ScanError::invalid_option(
+                "alpha_palette",
+                format!(
+                    "{} colors (max {})",
+                    self.alpha_palette.len(),
+                    Self::MAX_ALPHA_PALETTE
+                ),
+            ));
+        }
+        Ok(())
+    }
+
     /// Everything on — the quality-gate profile (~4 s budget).
     #[must_use]
     pub fn full() -> Self {

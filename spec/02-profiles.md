@@ -44,14 +44,11 @@ reading "NO" on valid product output is the documented trap.
   CLI `--budget-ms` · Node `budgetMs` ·
   WASM `budget_ms` (positional arg #5 of `scan_image`, #5 of `scan_frame`) ·
   Python `budget_ms` kwarg · Kotlin/Swift (UniFFI) `budget_ms`.
-- `0` = **unbounded** (WASM: any value that is not above 0, NaN included)
-  — NOT a zero-millisecond budget. WASM truncates a fractional budget to
-  whole milliseconds, so a value strictly between 0 and 1 IS a
-  zero-millisecond budget: the deadline has passed before the first stage,
-  which does not run (`trace.budget_exhausted: true`). The other bindings
-  take an unsigned integer. An unset `budget_ms` keeps the profile default
-  (`full` 4000 · `fast` 800 · `frame` 80 ms): reproducible reports need `0`
-  (Rust: `budget_ms: None`).
+- `0` = **unbounded** — NOT a zero-millisecond budget. The accepted values,
+  the maximum and the one mapping of a JavaScript number are in § Option
+  domains. An unset `budget_ms` keeps the profile default (`full` 4000 ·
+  `fast` 800 · `frame` 80 ms): reproducible reports need `0` (Rust:
+  `budget_ms: None`).
 - A planned unit the deadline prevents does not run: a ladder attempt or
   stage (including a stage the walk continues to because every QR Code
   read so far only signals an ECI it could not locate — 07-pipeline.md
@@ -103,6 +100,52 @@ reading "NO" on valid product output is the documented trap.
 Server guidance: lower `maxDimension`/`maxPixels` for untrusted uploads
 (e.g. 4096 / 16M). Violations are `QRS-002`/`QRS-003` errors — see
 [03-errors.md](03-errors.md).
+
+## Option domains (validated BEFORE the input)
+
+Every surface admits the same values and refuses the others with `QRS-006`
+([03-errors.md](03-errors.md)) before a byte of the input is read: an
+invalid option beside unreadable bytes is `QRS-006`, never `QRS-001`.
+
+| Option | Admitted | `QRS-006` |
+|---|---|---|
+| `budget_ms` | unset (the profile default) · `0` (unbounded) · 1 to 4 294 967 295 ms | above 4 294 967 295 |
+| `max_dimension` | 1 to 4 294 967 295 px | `0` |
+| `max_pixels` | 1 to 2⁶⁴ − 1 px (JavaScript: to 2⁵³ − 1) | `0` |
+| `alpha_palette` | at most 32 colors | more |
+| `pyramid_side` · `max_engine_side` (Rust `ScanConfig`) | 1 or more px | `0` |
+
+The budget's maximum, about 49.7 days, is the one range every binding
+carries exactly. The deadline is computed with checked arithmetic: a
+deadline the clock cannot represent is `QRS-006`, never a panic and never
+an unbounded scan (every admitted budget is representable on the supported
+clocks).
+
+Integer surfaces (Rust, the CLI, Python, Kotlin/Swift) carry these options
+as unsigned integers. A value the type cannot hold — a negative, a larger
+integer, a Python float — is refused by that language's conversion
+(Python `OverflowError`/`TypeError`, CLI usage error) before the scanner
+sees it.
+
+JavaScript numbers (Node, WASM) are read as doubles and mapped once, the
+same way on both — never through an integer conversion that wraps modulo
+2³², truncates or turns `NaN` into 0:
+
+- `budget_ms`: `0`, `-0`, a negative, `NaN` and `±Infinity` are unbounded. A
+  positive finite value is floored to whole milliseconds, so a value
+  strictly between 0 and 1 IS a zero-millisecond budget: the deadline has
+  passed before the first stage, which does not run
+  (`trace.budget_exhausted: true`). A value whose whole part is above
+  4 294 967 295 is refused.
+- `max_dimension` · `max_pixels`: a whole number from 1 to 4 294 967 295 ·
+  9 007 199 254 740 991 (`Number.MAX_SAFE_INTEGER`). `0`, a negative, a
+  fraction, `NaN`, an infinity or a larger value is refused — never a
+  wrapped, truncated, defaulted or disabled cap.
+- `null` and `undefined` leave an option unset.
+
+Unknown names (a profile, stress axis, score check, alpha background,
+palette color or preset) keep each binding's own loud error, without a
+`QRS` code.
 
 ## Cancellation
 

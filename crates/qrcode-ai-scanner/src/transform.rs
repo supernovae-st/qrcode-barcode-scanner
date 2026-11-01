@@ -110,7 +110,12 @@ pub(crate) fn normalize_with(
             height,
         } => {
             let pixels = validate_dims(width, height, limits)?;
-            validate_buffer(data.len(), pixels * 4)?;
+            let bytes = pixels.checked_mul(4).ok_or(ScanError::PixelOverflow {
+                width,
+                height,
+                max_pixels: limits.max_pixels,
+            })?;
+            validate_buffer(data.len(), bytes)?;
             // browser ImageData is color by contract — RGB always retained
             Ok(flatten_or_drop(data, width, height, alpha_background, true))
         }

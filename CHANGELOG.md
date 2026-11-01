@@ -41,9 +41,28 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
   artistic QR's module texture while retaining genuine Code 39 symbols,
   including a one-character `J` alone and beside a QR. Ordinary Code 39 admission
   and scoring on the original image remain unchanged.
+- Node and WASM read `budget_ms`, `max_dimension` and `max_pixels` the same
+  way (`spec/02-profiles.md` § Option domains). Reproduced on the installed
+  0.10.1 packages: Node's integer conversions wrapped `budgetMs: 4294967297`
+  to a 1 ms budget, ran `budgetMs: 0.5` unbounded, turned `maxDimension: -1`
+  into no size cap and refused every image on `maxPixels: NaN` or `Infinity`;
+  WASM ran `budget_ms: 1e300` without a practical bound, also lifted the size
+  cap on `max_dimension: -1`, and replaced `max_pixels: 0` or `NaN` by the
+  default cap and `Infinity` by none. Both now take doubles through one
+  mapping, and the same table of cases passes on both packages.
+- A zero `max_dimension` or `max_pixels` is an option error (`QRS-006`) on
+  every surface, no longer a `QRS-002`/`QRS-003` that blamed every image.
 
 ### Added
 
+- `QRS-006` InvalidOption: an option outside its domain, refused before the
+  input is read, so it is reported beside unreadable bytes too.
+  `ScanConfig::MAX_BUDGET_MS`, `ScanConfig::validate`, `Limits::validate` and
+  the `options` module (the JavaScript number mapping both JS packages use)
+  are public. The scan deadline uses checked arithmetic: an unrepresentable
+  deadline would be `QRS-006`, never a panic or an unbounded scan. The
+  suspected native overflow did not reproduce: `Instant + u64::MAX ms` is
+  representable on the native clocks, and a test keeps that observation.
 - **Occurrences** (`versions.pipeline` 4 → 5). Every detection carries
   `occurrences`: where each physical copy of its content was measured, 1 to
   16, earliest observed first. Two printed copies of one content are one
@@ -85,6 +104,12 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
 - Consolidated the compatible WASM/automatic loader and exact historical registry
   probes from the 0.10.1 branch. The historical probes remain separately named;
   they do not qualify 0.11.0 registry publication.
+- **Upgrade note.** A `budget_ms` above 4 294 967 295 ms (about 49.7 days) is
+  refused with `QRS-006` in Rust, Python and Kotlin/Swift, which accepted any
+  `u64` before: this is the range the CLI and Node already carried. Unbounded
+  stays `0` in the bindings and `None` in Rust. In Node and WASM a fractional
+  `max_dimension`/`max_pixels` is refused instead of truncated, and a
+  negative one instead of becoming no cap or the default.
 
 ## 0.10.1 — 2026-10-20
 

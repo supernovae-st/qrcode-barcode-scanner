@@ -38,6 +38,7 @@ mod gs1;
 mod input;
 mod ladder;
 mod matrix;
+pub mod options;
 mod payload;
 mod report;
 mod rescue;
@@ -105,7 +106,8 @@ impl Scanner {
     /// Scan one input. "No QR found" is `Ok` with empty detections.
     ///
     /// # Errors
-    /// Only real faults: invalid/oversized input (`QRS-001..004`) or
+    /// Only real faults: an option outside its domain (`QRS-006`, checked
+    /// before the input), invalid/oversized input (`QRS-001..004`) or
     /// cancellation (`QRS-005`) — never "nothing found".
     pub fn scan(&self, input: ImageInput<'_>) -> Result<ScanReport> {
         self.scan_cancellable(input, &CancelToken::new())
@@ -121,6 +123,10 @@ impl Scanner {
         input: ImageInput<'_>,
         cancel: &CancelToken,
     ) -> Result<ScanReport> {
+        // Options first: a configuration no scan can honour is QRS-006
+        // whatever the input, before a byte of it is decoded.
+        self.config.validate()?;
+        self.limits.validate()?;
         let normalized =
             transform::normalize_with(&input, &self.limits, self.config.alpha_background)?;
         let mut planes = normalized.planes;
@@ -128,10 +134,7 @@ impl Scanner {
         // ONE wall-clock budget for the whole scan — decode ladder AND
         // scoring share it (attempt/cell-granular: an in-flight engine call
         // is not interruptible, which is why engine inputs are size-capped).
-        let deadline = self
-            .config
-            .budget_ms
-            .map(|ms| web_time::Instant::now() + std::time::Duration::from_millis(ms));
+        let deadline = deadline_after(self.config.budget_ms)?;
         let mut outcome = ladder::run(&planes, &self.config, cancel, deadline)?;
         // Alpha `auto` retry: a zero-detection scan re-flattens over the
         // OPPOSITE background and walks the ladder once more (within the
@@ -304,6 +307,25 @@ impl ScannerBuilder {
     }
 }
 
+/// The scan's deadline, `budget_ms` from now. Checked: a deadline the clock
+/// cannot represent is `QRS-006`, never a panic and never silently
+/// unbounded. Every admitted budget (at most [`ScanConfig::MAX_BUDGET_MS`],
+/// about 49.7 days) is representable on the supported clocks.
+fn deadline_after(budget_ms: Option<u64>) -> Result<Option<web_time::Instant>> {
+    let Some(ms) = budget_ms else {
+        return Ok(None);
+    };
+    web_time::Instant::now()
+        .checked_add(std::time::Duration::from_millis(ms))
+        .map(Some)
+        .ok_or_else(|| {
+            ScanError::invalid_option(
+                "budget_ms",
+                format!("a deadline {ms} ms from now is not representable"),
+            )
+        })
+}
+
 /// The text classifier for FNC1-in-second-position data (spec/05): an
 /// AIM-assigned application's data, never GS1 — the plain classifier
 /// without its no-FNC1 GS1 sniff (the only route to `Gs1` it has).
@@ -471,7 +493,157 @@ mod tests {
     // workspace deny targets `src/`, so tests opt back into unwrap/expect.
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-    use super::{ImageInput, Limits, Scanner};
+    use super::{ImageInput, Limits, ScanConfig, ScanProfile, Scanner};
+
+    fn clean_png() -> Vec<u8> {
+        std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/clean/gen_v5_q.png"
+        ))
+        .unwrap()
+    }
+
+    fn scanner(config: ScanConfig, limits: Limits) -> Scanner {
+        Scanner::builder()
+            .profile(ScanProfile::Custom(config))
+            .limits(limits)
+            .build()
+    }
+
+    #[test]
+    #[cfg(not(target_family = "wasm"))]
+    fn the_overflow_hypothesis_does_not_reproduce_on_a_native_clock() {
+        // The refuted witness, kept: `now + u64::MAX ms` IS representable on
+        // a native clock (about 1.8e16 s against i64 seconds), so the former
+        // unchecked deadline did not panic for any u64 budget here. The
+        // budget ceiling is the portable option domain, not a crash fix; the
+        // checked addition only keeps an unrepresentable deadline an error.
+        let now = std::time::Instant::now();
+        let largest = std::time::Duration::from_millis(u64::MAX);
+        assert!(now.checked_add(largest).is_some());
+    }
+
+    #[test]
+    fn the_largest_admitted_budget_is_a_representable_deadline() {
+        let max = std::time::Duration::from_millis(ScanConfig::MAX_BUDGET_MS);
+        assert!(web_time::Instant::now().checked_add(max).is_some());
+    }
+
+    #[test]
+    fn an_option_out_of_its_domain_is_qrs_006_before_the_input_is_read() {
+        // checked first: beside unreadable bytes, the option is reported
+        let fast = ScanConfig::fast;
+        let cases = [
+            (
+                "budget_ms",
+                ScanConfig {
+                    budget_ms: Some(u64::MAX),
+                    ..fast()
+                },
+                Limits::default(),
+            ),
+            (
+                "budget_ms",
+                ScanConfig {
+                    budget_ms: Some(ScanConfig::MAX_BUDGET_MS + 1),
+                    ..fast()
+                },
+                Limits::default(),
+            ),
+            (
+                "pyramid_side",
+                ScanConfig {
+                    pyramid_side: 0,
+                    ..fast()
+                },
+                Limits::default(),
+            ),
+            (
+                "max_engine_side",
+                ScanConfig {
+                    max_engine_side: 0,
+                    ..fast()
+                },
+                Limits::default(),
+            ),
+            (
+                "alpha_palette",
+                ScanConfig {
+                    alpha_palette: vec![[0, 0, 0]; ScanConfig::MAX_ALPHA_PALETTE + 1],
+                    ..fast()
+                },
+                Limits::default(),
+            ),
+            (
+                "max_dimension",
+                fast(),
+                Limits {
+                    max_dimension: 0,
+                    ..Limits::default()
+                },
+            ),
+            (
+                "max_pixels",
+                fast(),
+                Limits {
+                    max_pixels: 0,
+                    ..Limits::default()
+                },
+            ),
+        ];
+        let png = clean_png();
+        for (option, config, limits) in cases {
+            let scan = scanner(config, limits);
+            for input in [
+                ImageInput::encoded(b"not an image"),
+                ImageInput::encoded(&png),
+            ] {
+                let err = scan.scan(input).expect_err(option);
+                assert_eq!(err.code(), "QRS-006", "{option}: {err}");
+                assert!(err.to_string().contains(option), "{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_largest_budget_and_the_smallest_sides_still_scan() {
+        let config = ScanConfig {
+            budget_ms: Some(ScanConfig::MAX_BUDGET_MS),
+            alpha_palette: vec![[0, 0, 0]; ScanConfig::MAX_ALPHA_PALETTE],
+            ..ScanConfig::fast()
+        };
+        let report = scanner(config, Limits::default())
+            .scan(ImageInput::encoded(&clean_png()))
+            .unwrap();
+        assert_eq!(report.detections.len(), 1);
+        assert_eq!(report.trace.budget_exhausted, Some(false));
+        let tiny = ScanConfig {
+            pyramid_side: 1,
+            max_engine_side: 1,
+            ..ScanConfig::fast()
+        };
+        // a 1-pixel engine side reads nothing, but it is a valid request:
+        // a final empty report, not an error and not a cut
+        let report = scanner(tiny, Limits::default())
+            .scan(ImageInput::encoded(&clean_png()))
+            .unwrap();
+        assert_eq!(report.detections.len(), 0);
+        assert_eq!(report.trace.budget_exhausted, Some(false));
+    }
+
+    #[test]
+    fn a_raw_frame_whose_byte_count_overflows_is_qrs_003() {
+        // 2^32-1 square at four bytes a pixel overflows u64: the limits
+        // allow it, the byte count cannot exist
+        let limits = Limits {
+            max_dimension: u32::MAX,
+            max_pixels: u64::MAX,
+        };
+        let err = scanner(ScanConfig::fast(), limits)
+            .scan(ImageInput::rgba8(&[0; 16], u32::MAX, u32::MAX))
+            .unwrap_err();
+        assert_eq!(err.code(), "QRS-003", "{err}");
+    }
 
     #[test]
     fn builder_threads_custom_limits_into_the_scan() {
