@@ -53,6 +53,32 @@
       },
       "engines": [
         "rxing"
+      ],
+      "occurrences": [
+        {
+          "geometry": {
+            "kind": "quad",
+            "points": [
+              {
+                "x": 32.0,
+                "y": 32.0
+              },
+              {
+                "x": 264.0,
+                "y": 32.0
+              },
+              {
+                "x": 264.0,
+                "y": 264.0
+              },
+              {
+                "x": 32.0,
+                "y": 264.0
+              }
+            ],
+            "reader": "rxing"
+          }
+        }
       ]
     }
   ],
@@ -143,17 +169,22 @@
       {
         "stage": "direct",
         "transforms_tried": 1,
-        "ms": 4.210333,
+        "ms": 2.7860419999999997,
         "detections_found": 1
       }
     ],
     "engine_panics": 0,
-    "total_ms": 4.270917,
-    "budget_exhausted": false
+    "total_ms": 2.803916,
+    "budget_exhausted": false,
+    "saturation": {
+      "reads": false,
+      "detections": false,
+      "occurrences": false
+    }
   },
   "versions": {
     "scanner": "0.11.0",
-    "pipeline": 4,
+    "pipeline": 5,
     "score_contract": 5
   }
 }

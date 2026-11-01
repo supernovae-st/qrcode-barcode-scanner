@@ -54,9 +54,9 @@ pub use payload::Payload;
 pub use report::{
     AlphaEnvelope, AlphaMode, AlphaPaletteProbe, AlphaPlacement, AlphaProbe, AlphaReport,
     AxisScore, Charset, DecodedContent, Detection, EcLevel, EciSegment, EngineKind, Fnc1Position,
-    Grade, Hint, Iso15415Report, IsoGrade, IsoParameter, PipelineTrace, PlateColor, Point, QrMeta,
-    ScanReport, Score, StageTrace, StressAxis, StructuralReport, Symbology, UecGrade, UecReport,
-    Versions,
+    GeometryKind, Grade, Hint, Iso15415Report, IsoGrade, IsoParameter, Occurrence,
+    OccurrenceGeometry, PipelineTrace, PlateColor, Point, QrMeta, Saturation, ScanReport, Score,
+    StageTrace, StressAxis, StructuralReport, Symbology, UecGrade, UecReport, Versions,
 };
 
 /// Fuzz-only entry points — cargo-fuzz builds the whole graph with
@@ -434,6 +434,7 @@ fn build_report(
                     inverted: m.corners.is_some().then_some(m.photometric_inverted),
                 },
                 engines: m.engines,
+                occurrences: m.occurrences.into_iter().map(wire_occurrence).collect(),
             }
         })
         .collect();
@@ -444,6 +445,23 @@ fn build_report(
         alpha,
         trace: outcome.trace,
         versions: Versions::current(),
+    }
+}
+
+/// A validated footprint as a published occurrence.
+fn wire_occurrence(footprint: engine::occurrence::Footprint) -> report::Occurrence {
+    use engine::occurrence::Kind;
+    report::Occurrence {
+        geometry: report::OccurrenceGeometry {
+            kind: match footprint.kind {
+                Kind::Quad => report::GeometryKind::Quad,
+                Kind::Segment => report::GeometryKind::Segment,
+                Kind::Partial => report::GeometryKind::Partial,
+                Kind::Unavailable => report::GeometryKind::Unavailable,
+            },
+            points: footprint.points,
+            reader: footprint.detector,
+        },
     }
 }
 

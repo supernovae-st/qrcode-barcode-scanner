@@ -495,8 +495,15 @@ class Detection {
   final List<Point>? corners;
   final QrMeta meta;
   final List<EngineKind> engines;
+
+  /// Where each physical copy of this content was measured (spec/01
+  /// § Occurrences): 1 to 16, earliest observed first. Two printed copies
+  /// of one content are ONE detection with two occurrences. null: a report
+  /// older than pipeline 5 (unknown). Independent of [corners].
+  final List<Occurrence>? occurrences;
   const Detection(this.symbology, this.content, this.payload, this.corners,
-      this.meta, this.engines);
+      this.meta, this.engines,
+      [this.occurrences]);
 
   factory Detection.fromJson(Map<String, dynamic> j) => Detection(
         Symbology.from(j['symbology']),
@@ -507,7 +514,57 @@ class Detection {
             : null,
         QrMeta.fromJson(_obj(j['meta'])),
         (j['engines'] as List? ?? const []).map(EngineKind.from).toList(),
+        j['occurrences'] is List
+            ? _objList(j['occurrences']).map(Occurrence.fromJson).toList()
+            : null,
       );
+}
+
+/// What an occurrence's points are (spec/01 § Occurrences). Later versions
+/// may add kinds: they read as [unknown].
+enum GeometryKind {
+  quad,
+  segment,
+  partial,
+  unavailable,
+  unknown;
+
+  static GeometryKind from(Object? v) => switch (v) {
+        'quad' => quad,
+        'segment' => segment,
+        'partial' => partial,
+        'unavailable' => unavailable,
+        _ => unknown,
+      };
+}
+
+/// What a reader measured of one symbol, in stored-pixel image coordinates
+/// (y down) — never completed, extended or reconstructed. A quad is
+/// clockwise; for the QR family its first point is the symbol's origin
+/// corner in every rotation, mirrored or not.
+class OccurrenceGeometry {
+  final GeometryKind kind;
+
+  /// quad 4 · segment 2 · partial 1-8 · unavailable none.
+  final List<Point> points;
+
+  /// The decoder that measured the points (never rescue: a rescued grid is
+  /// rqrr's); null exactly when [kind] is unavailable.
+  final EngineKind? reader;
+  const OccurrenceGeometry(this.kind, this.points, this.reader);
+  factory OccurrenceGeometry.fromJson(Map<String, dynamic> j) => OccurrenceGeometry(
+        GeometryKind.from(j['kind']),
+        _objList(j['points']).map(Point.fromJson).toList(),
+        j['reader'] == null ? null : EngineKind.from(j['reader']),
+      );
+}
+
+/// One physical copy of a detection's content.
+class Occurrence {
+  final OccurrenceGeometry geometry;
+  const Occurrence(this.geometry);
+  factory Occurrence.fromJson(Map<String, dynamic> j) =>
+      Occurrence(OccurrenceGeometry.fromJson(_obj(j['geometry'])));
 }
 
 // ─────────────────────────── Score ───────────────────────────
@@ -878,13 +935,39 @@ class PipelineTrace {
   /// true: partial (the budget cut planned work); false: final; null: a
   /// report older than score_contract 5 (unknown, never false).
   final bool? budgetExhausted;
+
+  /// The capacities the scan reached, whatever the budget; null: a report
+  /// older than pipeline 5 (unknown, never false).
+  final Saturation? saturation;
   const PipelineTrace(this.stages, this.enginePanics, this.totalMs,
-      [this.budgetExhausted]);
+      [this.budgetExhausted, this.saturation]);
   factory PipelineTrace.fromJson(Map<String, dynamic> j) => PipelineTrace(
         _objList(j['stages']).map(StageTrace.fromJson).toList(),
         _int(j['engine_panics']) ?? 0,
         _double(j['total_ms']),
         j['budget_exhausted'] as bool?,
+        j['saturation'] is Map
+            ? Saturation.fromJson(_obj(j['saturation']))
+            : null,
+      );
+}
+
+/// A true flag: what that capacity left out is unknown, not absent.
+class Saturation {
+  /// Distinct reads past a walk's 64 were counted, not reconciled, or the
+  /// refusal records failed closed.
+  final bool reads;
+
+  /// Contents past the 16 published detections were left out.
+  final bool detections;
+
+  /// Some detection's occurrences are incomplete.
+  final bool occurrences;
+  const Saturation(this.reads, this.detections, this.occurrences);
+  factory Saturation.fromJson(Map<String, dynamic> j) => Saturation(
+        j['reads'] == true,
+        j['detections'] == true,
+        j['occurrences'] == true,
       );
 }
 

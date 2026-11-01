@@ -52,7 +52,10 @@ keys:
     "modules":  number | null,   // version*4+17, derived
     "inverted": boolean | null   // light-on-dark, measured; null = no geometry
   },
-  "engines": ["rxing"|"rqrr"|"rescue", ...]  // consensus surface, ≥1 entry
+  "engines": ["rxing"|"rqrr"|"rescue", ...], // consensus surface, ≥1 entry
+  "occurrences": [Occurrence, ...] // § Occurrences — where each physical copy
+                                 // was measured: 1..16, earliest observed first.
+                                 // Pipeline ≥ 5; ABSENT on older reports
 }
 ```
 
@@ -65,7 +68,9 @@ Semantics that bite:
   content and become one detection, which keeps the most specific
   evidence.
   - Identical copies of a symbol are one detection; corners come from the
-    first read of that detection that carries them.
+    first read of that detection that carries them. Where each copy was
+    measured is its `occurrences` (§ Occurrences): two printed copies of one
+    content are one detection with two occurrences, never two detections.
   - Reads the scanner cannot tell apart (same bytes and FNC1 position,
     declarations not located, nothing in their position to separate them)
     may collapse into one detection. A read that fits more than one
@@ -104,7 +109,9 @@ Semantics that bite:
   or mask — and then no structural or ISO section. The scanner also
   samples symbols internally (the re-read, 07-pipeline.md property 6) and
   uses every engine's corner points to keep the reads of different symbols
-  apart; pipeline 3 publishes neither.
+  apart; it publishes no re-read. What every reader measured of each copy
+  is published separately, as `occurrences` (§ Occurrences, pipeline ≥ 5):
+  `corners` and `meta` keep exactly the meaning above.
 - **Detections are ordered QR-family first** (stable within each group) —
   the scored "primary" (`detections[0]`) is contract, not detector
   iteration order. On a flyer with a QR + a retail barcode, the QR leads.
@@ -405,7 +412,112 @@ so identity there is only as exact as the engine.
 ## Point
 
 `{ "x": number, "y": number }` — pixels in the ORIGINAL input image
-(detections found on internal downscales are rescaled back).
+(detections found on internal downscales are rescaled back). Continuous
+coordinates, y down: pixel (i, j) spans [i, i+1) × [j, j+1), so the
+top-left corner of the image is (0, 0) and the centre of its first pixel
+(0.5, 0.5).
+
+## Occurrences
+
+A detection is one content (§ Comparing contents). Its `occurrences` say
+where each physical copy of that content was measured: at least one, at most
+16, earliest observed first (pipeline ≥ 5; absent from older reports).
+
+```jsonc
+// Occurrence
+{
+  "geometry": {
+    "kind":   "quad" | "segment" | "partial" | "unavailable",
+    "points": [Point],            // quad 4 · segment 2 · partial 1..8 · unavailable 0
+    "reader": "rxing" | "rqrr" | null  // the reader that measured the points;
+                                  // null exactly when "unavailable"
+  }
+}
+```
+
+Geometry is published only as a reader measured it — never completed,
+extended, reconstructed or inferred from text:
+
+| `kind` | Points | Meaning |
+|---|---|---|
+| `quad` | 4 | The symbol's outer corners, validated: finite; inside the image within max(2 px, 2% of its longer side); strictly convex; area at least 4 px²; clockwise in image space (y down). For the QR family the first point is the symbol's origin corner — the outer corner of the finder pattern at module (0, 0), the top-left of the upright symbol — in every rotation, mirrored or not. For other symbologies the first point is the reader's first corner and means nothing more. |
+| `segment` | 2 | Two points along the image row (or line) the reader decoded, ordered by x then y: no direction is claimed. They are neither the symbol's extent nor its height. |
+| `partial` | 1–8 | Points that form no validated quad or segment: finder centres or finder edges, a corner set with a point missing, or the in-image points of a quad or segment that failed validation. |
+| `unavailable` | 0 | The reader measured nothing. |
+
+What each reader measures, pinned by tests on clean renders (§ Point
+conventions):
+
+| Symbology · reader | Geometry |
+|---|---|
+| QR Code · `rqrr` | `quad`: the outer corners of the grid it detected or decoded, also for a grid the scanner re-derived and the S5 rescue. Exact (within 0.01 px) at the four quarter turns, mirrored or not; between them a fit: mean offset 0.4–0.64 px from the true corners, worst ≈ 3 px, over 576 renders (0–360°, 3–8 px modules). |
+| QR Code · `rxing` | `quad` from its sampler's corners, exact (within 0.01 px) at the four quarter turns, mirrored or not. A read of the ZXing-lineage fallback reader (07-pipeline.md § Engine roles): its finder centres as `partial`. |
+| Micro QR, rMQR · `rxing` | `quad` from the same sampler corners, exact upright. |
+| Data Matrix, Aztec · `rxing` | `quad` within one module of the symbol's corners. |
+| PDF417 · `rxing` | `quad` within one module of the symbol's corners when the reader returns all eight vertices; otherwise `partial`. |
+| EAN/UPC, Code 128, Code 39, Code 93, ITF · `rxing` | `segment` on the centre of the pixel row it decoded, inside the start and stop patterns (EAN/UPC: the centres of the outer guards; Code 128: of the start pattern and of the stop character's first eleven modules). Turned or reversed symbols move with the image. An EAN/UPC symbol read with its two- or five-digit add-on (whose digits are not published) is `partial`: the main symbol's two points, then the add-on's two (its start guard's centre and the end of its last bar), on the same row. |
+| DataBar, DataBar Expanded · `rxing` | `partial`: the edges of its finder patterns on the decoded row, upright and upside down. |
+| Codabar, Telepen · `rxing` | `unavailable`: the pinned rxing 0.9.3 measures both from the row's first light pixel and past the stop character, so no point lies on the symbol. |
+| MaxiCode · `rxing` | `unavailable`: the pinned rxing 0.9.3 reports no points. |
+
+`reader` names the decoder that measured the geometry; it is never
+`rescue`. A rescued symbol or a grid the scanner re-derived is measured by
+`rqrr`, whose grid it is. `engines` (the consensus surface) and `reader`
+answer different questions.
+
+**Grouping.** The footprints of every read of a detection, over every
+attempt of the walk that published it, are grouped into copies when the
+report is assembled (the opposite-background walk publishes only when the
+first walk published nothing, § Alpha):
+
+- Matrix symbologies (QR family, Data Matrix, Aztec, PDF417, MaxiCode): two
+  footprints are one copy when the centre of either lies inside the other —
+  a quad's own outline, the box of any other points — within one pixel of
+  the coarser plane that measured them, plus one pixel. A small copy in the
+  empty corner of a rotated one is another copy.
+- Linear symbologies: footprints compare by their scan axes (each one's two
+  farthest points). Axes that cross are one copy (two printed copies cannot
+  overlap); axes more than 20° apart, or sharing less than half of the
+  shorter one's stretch, are two copies; parallel axes at most 1.5 px apart
+  are one. Otherwise the source pixels between the two lines decide: the
+  bar pattern lost over a run of at least max(4 px, 8% of the shared
+  stretch) — a quiet zone, text or background between copies — makes two
+  copies; a pattern that runs through makes one.
+- Grouping links proven pairs (single linkage) and depends on the set of
+  footprints, not on their order. A pair the scanner cannot decide — bars
+  under 32 grey levels of contrast or too few, pixels outside the image, or
+  past 256 pixel comparisons for the detection — never invents a copy: the
+  footprint stays with the earliest copy it may belong to, without joining
+  copies together, and `trace.saturation.occurrences` is set.
+- Known limit: glare that washes the bars out across one copy reads as a
+  gap, so that copy can be published as two occurrences. A detection never
+  merges two contents, and copies are never told apart by `text`.
+
+**Representative.** Each occurrence publishes one of its footprints: the
+most specific kind (a `quad` or `segment` before `partial`), then the one
+measured on the finest plane, then the earliest read.
+
+**Order and retention.** Occurrences are ordered by their earliest read
+(attempt order; within an attempt rxing, rqrr, re-derived grids, rescue).
+A read keeps its 128 earliest distinct footprints and a detection groups
+its 256 earliest; it publishes the 16 earliest copies. A detection no
+reader located has exactly one `unavailable` occurrence. Whatever a
+capacity leaves out sets `trace.saturation.occurrences`: what is missing
+is unknown, not absent.
+
+**Refusals.** Only reads that are published contribute footprints. A
+refused, withheld or held read (07-pipeline.md property 6, § Acceptance)
+publishes no occurrence, and a footprint whose centre lies inside the place
+of a refused symbol naming that content is dropped even when the read
+stands on a parse made elsewhere: a refused copy is never an occurrence. A
+re-derived grid contributes its footprint only when it joins as a read.
+
+**Independence.** `corners`, `meta`, the score and `alpha` are unchanged
+by occurrences: `corners` keep rqrr's grid frame exactly as rqrr reported
+it (the score's sampling input), while an occurrence's `quad` carries the
+symbol's outer corners, corrected for rqrr's anchor. The two can differ by
+a module or more; never derive one from the other. A content that is
+reconciled once has one primary score whatever its number of copies.
 
 ## PipelineTrace
 
@@ -425,11 +537,23 @@ so identity there is only as exact as the engine.
   }],
   "engine_panics":    number,    // third-party decoder panics caught + isolated
   "total_ms":         number,    // wall clock of the ladder walk(s) only
-  "budget_exhausted": boolean    // score_contract ≥ 5: true = the budget prevented planned work,
+  "budget_exhausted": boolean,   // score_contract ≥ 5: true = the budget prevented planned work,
                                  // the report is partial; false = final (02-profiles.md § Budget).
                                  // ABSENT on older reports: unknown, never false
+  "saturation": {                // pipeline ≥ 5: the capacities the scan reached, whatever
+                                 // the budget. ABSENT on older reports: unknown, never false
+    "reads":       boolean,      // distinct reads past a walk's 64 were counted, not reconciled,
+                                 // or the refusal records failed closed (07-pipeline.md property 6)
+    "detections":  boolean,      // contents past the 16 published detections were left out
+    "occurrences": boolean       // some detection's occurrences are incomplete (§ Occurrences)
+  }
 }
 ```
+
+A flag is the OR over both walks when the opposite-background walk ran
+(§ Alpha). A set flag means what was left out is unknown, not absent: a
+report with `saturation.detections` may miss contents, one with
+`saturation.occurrences` may miss copies or keep two together.
 
 Stage names are stable identifiers. A stage that found something still
 completes (consensus within the stage is preserved); the ladder stops at
@@ -451,7 +575,7 @@ establish; a confirmation decode's reads are counted nowhere
 // `scanner` is illustrative — it carries whatever workspace release produced
 // the report. `pipeline` and `score_contract` are the normative compatibility
 // anchors (bumped only on breaking / semantic change).
-{ "scanner": "0.9.0", "pipeline": 3, "score_contract": 5 }
+{ "scanner": "0.11.0", "pipeline": 5, "score_contract": 5 }
 ```
 
 ## Score — see [04-score.md](04-score.md) for full semantics

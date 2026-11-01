@@ -13,8 +13,25 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
   completes QR pyramid results before the early return.
   Regression coverage retains `STOCK-4827` beside a QR in fast, frame and full
   profiles, including the existing browser WASM checks, and adds native exact
-  QR/Data Matrix coverage in both placements. Detection identity, QR quality
-  scoring and wire fields remain unchanged; `versions.pipeline` advances to 4.
+  QR/Data Matrix coverage in both placements. Detection identity and QR quality
+  scoring remain unchanged. This completion is pipeline 4's change; the release
+  publishes pipeline 5 with occurrences (below).
+- Equal printed copies of one linear content are no longer collapsed into one
+  read. The scanner's copy of rxing 0.9.3's multiple-barcode reader
+  (`src/engine/multi_reader.rs`, Apache-2.0 notices kept, `THIRD-PARTY.md`)
+  decides duplicates by kind of symbol and by the image's pixels instead of
+  point count, normalizes every read's points into the image's frame, reads a
+  node again past a read without points, uses one fixed reader order and a
+  fresh reader state for each read. All three rxing entry points use it: the
+  unrestricted, family and single-format passes; the local DataBar Expanded
+  reader; and the rMQR-only pass of score cells and envelope probes.
+- The S5 rescue keeps identically damaged twins at different places as
+  separate candidates and rescues each place, instead of stopping at the
+  first recovered stream.
+- An unparsed QR Code read that stands publishes no copy where a refusal of
+  its content was placed: a copy proved malformed is never an occurrence.
+- The DataBar Expanded reader clears the rows of its upright pass before the
+  rotated pass, so it never assembles a symbol from rows of two frames.
 - Preserved the console candidate's Code 93 checksum rejection, small DataBar
   decoding and guarded DataBar Expanded recovery. The consolidated rxing 0.9.3
   adapter retains the local Expanded reader with its Apache-2.0 notices, valid
@@ -27,6 +44,25 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
 
 ### Added
 
+- **Occurrences** (`versions.pipeline` 4 → 5). Every detection carries
+  `occurrences`: where each physical copy of its content was measured, 1 to
+  16, earliest observed first. Two printed copies of one content are one
+  detection with two occurrences, never two detections. Each geometry is what a
+  reader measured, never completed: `quad` (validated outer corners, clockwise;
+  for the QR family the first is the symbol's origin corner in every rotation,
+  mirrored or not), `segment` (a linear reader's scan-line points), `partial`
+  or `unavailable`, with the `reader` that measured it. rqrr's quads are
+  corrected for its pixel-anchor bias, exact at the quarter turns; `corners`,
+  `meta` and the score keep their meaning. Copies are grouped by geometry and,
+  for linear symbols, by the pixels between scan lines; a pair that cannot be
+  decided is never split into an invented copy and is flagged. Rules:
+  `spec/01-report.md` § Occurrences.
+- `trace.saturation` reports the capacities a scan reached, whatever the budget:
+  reads past a walk's capacity or refusal records that failed closed,
+  contents past the 16 published detections, incomplete occurrences. A set flag
+  means what was left out is unknown, not absent. Both new keys are absent from
+  older reports; the JSON Schema, TypeScript, Dart and type-parity gate cover
+  them.
 - The browser package's `/camera` entry exports a measured-geometry tracker,
   normalized video projection and a camera capture controller. It supports
   frame callbacks, serialized worker decoding, cancellation of late permission

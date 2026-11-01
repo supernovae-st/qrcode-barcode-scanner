@@ -1,4 +1,4 @@
-# 07 · The decode pipeline v4 (normative behavior)
+# 07 · The decode pipeline v5 (normative behavior)
 
 ```
 ImageInput (Encoded | Rgba8 | Luma8)
@@ -19,6 +19,8 @@ ImageInput (Encoded | Rgba8 | Luma8)
     walks stay in the trace; `alpha.fallback_used` marks a rescue
   → merge        reconcile reads (property 6) → content interpreted once per
                  detection (01-report § Content)
+  → occurrences  each detection's footprints grouped by physical copy
+                 (01-report § Occurrences)
   → score        contract v5 (04-score.md) — Full/Fast only
   → alpha placement envelope (Full only) — 01-report § Alpha
   → ScanReport
@@ -36,12 +38,19 @@ Normative properties:
    barcode bars and small matrix modules lost during downscaling must not be
    suppressed by that QR success. This pass excludes all three QR formats and
    does not rerun rqrr; it covers the retained linear and other matrix families.
-   Both reads enter the same content reconciliation; the completion uses the
+   A pyramid that reads only other symbologies gets no such pass: a narrow
+   symbol the downscale erased beside them stays unreported. This is a known
+   loss (measured: a Code 128 beside a MaxiCode, a PDF417 or an EAN-13 in
+   images over 1100 px wide), kept because the pass roughly multiplied by
+   eight the time of a 1280×720 frame holding a single EAN-13.
+   The pyramid's reads and those of the complementary pass enter the same
+   content reconciliation; the completion uses the
    existing `direct` trace stage. Only during this complementary pass, the
    measured convex regions of already admitted QR reads are masked on its
    cloned work plane, so their module texture cannot become a neighboring
-   non-QR detection. The regions require four points measured by a reader;
-   reconstructed finder-center quadrilaterals are excluded. The original plane
+   non-QR detection (at most 16 regions per content, 256 in all). The
+   regions require four points measured by a reader; reconstructed
+   finder-center quadrilaterals are excluded. The original plane
    and scoring input stay unchanged. The ladder then stops, unless among
    the reads collected so far (refused and withheld reads excluded) there
    is a QR Code read and every QR Code read only signals an ECI it could
@@ -201,7 +210,9 @@ Normative properties:
    geometry are kept, with the distinct places it was read at — a place
    whose centre lies inside a recorded one is the same symbol — at most 8.
    At most 64 such distinct reads are kept per walk, in attempt order;
-   later distinct reads are counted, not reconciled.
+   later distinct reads are counted, not reconciled. A kept read also
+   keeps the footprints its reads measured — its 128 earliest distinct
+   ones by rank (01-report § Occurrences) — apart from its places.
 
    After the ladder completes, withheld reads are dropped; a re-derived
    grid joins as a read only when it contains an engine read of the same
@@ -235,6 +246,14 @@ Normative properties:
    is interpreted once: located → `eci` entries; signalled → `eci: []`;
    otherwise no key; FNC1 first/second → `fnc1`. At most 16 detections are
    published: QR family first, then by earliest read.
+
+   Each published detection then groups its reads' footprints into
+   occurrences (01-report § Occurrences). An unparsed QR Code read that
+   stands drops every footprint whose centre lies inside the place of a
+   refusal naming its content: a refused copy is never an occurrence.
+   Distinct reads past a walk's 64, a walk that failed closed, contents past
+   the 16 published and incomplete occurrences set `trace.saturation`
+   (01-report § PipelineTrace).
 7. **Probes match content identity, not text.** A score stress cell or an
    alpha envelope/palette probe counts as decoded when one of its reads
    would join the primary detection under property 6's accounts: same
@@ -291,8 +310,13 @@ protects reads it agrees with and keeps re-derivation running.
 
 Trigger: S1–S4 published no detection (refused, withheld and held reads do
 not count), but rqrr READ a grid + its format info on at least one attempt
-(`get_raw_data` ok, `decode_to` err). Up to 4 candidates are kept (deduped
-by version/ec/mask/polarity/orientation).
+(`get_raw_data` ok, `decode_to` err). Up to 4 candidates are kept, in the
+order they were found: a candidate with the version, EC level, mask,
+polarity and orientation of a kept one is a duplicate only at the same
+place (the centre of either grid inside the other's box) — an
+identically damaged twin elsewhere is another candidate. Candidates are
+tried in order, skipping a place already rescued, so that each distinct
+place can be rescued.
 
 Per candidate:
 

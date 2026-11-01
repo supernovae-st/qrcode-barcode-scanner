@@ -29,3 +29,25 @@ Text written as UTF-8 bytes means `create_barcode(text.encode('utf-8'), …)`.
 
 `datamatrix-gs1.png` (a corpus fixture) is not GS1 mode: it carries the
 element string after a literal GS character, with no FNC1 codeword.
+
+## Occurrence fixtures
+
+Inputs of `crates/qrcode-ai-scanner/tests/occurrences.rs` (spec/01
+§ Occurrences): where a reader's geometry lies, or why it publishes none.
+Same writer, zxing-cpp 3.1.1: `create_barcode(text, format)`, then
+`to_image(scale=s, add_quiet_zones=True)` converted to luma. Two symbols
+*beside* each other: canvas `w₁ + w₂ + 80` × `max(h) + 40`, white, pasted at
+(20, 20) and (w₁ + 60, 20). *Stacked*: canvas `max(w) + 40` × `h₁ + h₂ + 60`,
+pasted at (20, 20) and (20, h₁ + 40). Saved by Pillow with `optimize=True`.
+
+| File | Symbols | Layout | sha256 |
+|---|---|---|---|
+| `maxicode-over-code128.png` | MaxiCode `MAXI-4827` (scale 2) above Code 128 `STOCK-4827` (scale 2) | stacked, 359 × 478 | `27c8f262a060e2f0b384e2e2523cbc35a99c7d3851afa6237103408a1c82a0d8` |
+| `ean13-addon5-code128.png` | EAN-13 `5901234123457` with the add-on `12345` (written as `5901234123457+12345`, scale 3), then Code 128 `STOCK-4827` (scale 3) | beside, 1037 × 205 | `58e6e142bde63671684b931258a1f32618184e27565b99330c995696e4733440` |
+| `codabar.png` | Codabar `A40156B` (scale 3; read back as `40156`) | alone, 276 × 150 | `5efff3c933372e70262d054d6ff12d674e50172468ed6d12694805c9c8e0486b` |
+| `telepen.png` | Telepen `TELEPEN-4827` (scale 3) | alone, 780 × 150 | `f54a1bb0deb2ae7239bb71df262f9bb7c0bb4f03e13145ee6981bf0c347ccbff` |
+
+Bars measured from the pixels (columns of dark pixels, inclusive): in
+`ean13-addon5-code128.png` the main symbol 53–337, its add-on 359–499 and the
+Code 128 585–986; in `maxicode-over-code128.png` the MaxiCode rows 30–327 and
+the Code 128 rows 358–457.

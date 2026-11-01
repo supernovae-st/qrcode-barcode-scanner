@@ -365,6 +365,88 @@ pub struct Detection {
     pub meta: QrMeta,
     /// Engines that confirmed this payload (consensus surface for scoring).
     pub engines: Vec<EngineKind>,
+    /// Where each physical copy of this content was measured (spec/01
+    /// § Occurrences): at least one, at most sixteen, earliest observed
+    /// first. Identical copies stay one detection with several occurrences.
+    /// Empty only in a report older than pipeline 5.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub occurrences: Vec<Occurrence>,
+}
+
+/// One physical copy of a detection's content.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
+pub struct Occurrence {
+    /// What a reader measured of it, as measured.
+    pub geometry: OccurrenceGeometry,
+}
+
+/// What a reader measured of one symbol, in stored-pixel image
+/// coordinates — never completed, extended or reconstructed.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
+pub struct OccurrenceGeometry {
+    /// What the points are.
+    pub kind: GeometryKind,
+    /// `quad` 4 · `segment` 2 · `partial` 1 to 8 · `unavailable` none.
+    pub points: Vec<Point>,
+    /// The reader that measured the points; `None` exactly when
+    /// `unavailable`.
+    pub reader: Option<EngineKind>,
+}
+
+/// The kind of an occurrence's geometry (spec/01 § Occurrences).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+#[non_exhaustive]
+pub enum GeometryKind {
+    /// Four outer corners: finite, inside the image within a small
+    /// tolerance, strictly convex, clockwise in image space. Only for the
+    /// QR family does the first corner mean the symbol's top-left.
+    Quad,
+    /// Two points along the reader's scan line — neither the symbol's
+    /// extent nor its height.
+    Segment,
+    /// Points that form no validated quad or segment.
+    Partial,
+    /// The reader measured nothing.
+    Unavailable,
+}
+
+/// Capacities a scan reached: what it left out is unknown, not absent.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
+pub struct Saturation {
+    /// Distinct reads past the walk's capacity were not reconciled.
+    pub reads: bool,
+    /// Contents past the sixteen published detections were left out.
+    pub detections: bool,
+    /// A detection's occurrences are incomplete: footprints past a
+    /// capacity, copies past sixteen, or copies kept together without their
+    /// pixels compared.
+    pub occurrences: bool,
+}
+
+impl Saturation {
+    /// Either capacity reached.
+    #[must_use]
+    pub fn either(a: Self, b: Self) -> Self {
+        Self {
+            reads: a.reads || b.reads,
+            detections: a.detections || b.detections,
+            occurrences: a.occurrences || b.occurrences,
+        }
+    }
+
+    /// Whether any capacity was reached.
+    #[must_use]
+    pub fn any(self) -> bool {
+        self.reads || self.detections || self.occurrences
+    }
 }
 
 /// Score grade bands — the published interpretation table.
@@ -864,6 +946,14 @@ pub struct PipelineTrace {
         serde(default, skip_serializing_if = "Option::is_none")
     )]
     pub budget_exhausted: Option<bool>,
+    /// The capacities the scan reached, independent of the budget. `None`:
+    /// unknown, a report older than pipeline 5; this crate always writes
+    /// `Some`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub saturation: Option<Saturation>,
 }
 
 impl Default for PipelineTrace {
@@ -874,6 +964,7 @@ impl Default for PipelineTrace {
             engine_panics: 0,
             total_ms: 0.0,
             budget_exhausted: Some(false),
+            saturation: Some(Saturation::default()),
         }
     }
 }
@@ -906,9 +997,12 @@ impl Versions {
     pub fn current() -> Self {
         Self {
             scanner: env!("CARGO_PKG_VERSION").to_owned(),
-            // pipeline 4: native-resolution linear completion after a QR
+            // pipeline 5: every physical copy of a content measured as an
+            // occurrence (equal linear copies no longer collapse in the
+            // multiple reader) and the capacities a scan reached published.
+            // Pipeline 4: native-resolution linear completion after a QR
             // pyramid read, plus independently confirmed DataBar reads.
-            pipeline: 4,
+            pipeline: 5,
             // score contract 5: the correction-margin cap on the verified
             // orientation's stream, interrupted judgments absent, probes
             // matched by content identity
@@ -1092,6 +1186,18 @@ mod tests {
                     inverted: Some(false),
                 },
                 engines: vec![EngineKind::Rxing, EngineKind::Rqrr],
+                occurrences: vec![Occurrence {
+                    geometry: OccurrenceGeometry {
+                        kind: GeometryKind::Quad,
+                        points: vec![
+                            Point { x: 10.0, y: 10.0 },
+                            Point { x: 86.5, y: 10.4 },
+                            Point { x: 86.9, y: 86.0 },
+                            Point { x: 10.0, y: 85.6 },
+                        ],
+                        reader: Some(EngineKind::Rqrr),
+                    },
+                }],
             }],
             score: Some(full_score()),
             hints: vec![
@@ -1121,6 +1227,11 @@ mod tests {
                 engine_panics: 0,
                 total_ms: 12.5,
                 budget_exhausted: Some(false),
+                saturation: Some(Saturation {
+                    reads: false,
+                    detections: false,
+                    occurrences: true,
+                }),
             },
             versions: Versions::current(),
         }
@@ -1239,9 +1350,9 @@ mod tests {
         let v = Versions::current();
         assert_eq!(v.scanner, env!("CARGO_PKG_VERSION"));
         assert_eq!(
-            v.pipeline, 4,
-            "pipeline v4 = linear completion and confirmed DataBar reads; \
-             a bump must be deliberate"
+            v.pipeline, 5,
+            "pipeline v5 = occurrences of every physical copy and the capacities \
+             reached; a bump must be deliberate"
         );
         assert_eq!(
             v.score_contract, 5,

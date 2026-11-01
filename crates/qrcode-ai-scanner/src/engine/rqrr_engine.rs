@@ -14,8 +14,11 @@
 //! verify ([`rescue_input`]: a mirrored FNC1 symbol), decided once for at
 //! most [`MAX_CANDIDATES`] grids per pass.
 
+use rqrr::BitGrid as _;
+
 use super::content::{EciEvidence, EngineReading, Fnc1, Segments};
 use super::locate::{Frame, LocateHint};
+use super::occurrence::{UNIT_PIXEL, rqrr_footprint};
 use super::{MaskedStream, RawDetection, Refusal};
 use crate::input::LumaImage;
 use crate::report::{EcLevel, EngineKind, Point, Symbology};
@@ -135,6 +138,7 @@ pub(super) fn decode(luma: &LumaImage, orient_candidates: bool) -> Pass {
             engine_reading: EngineReading::None,
             location: Some(bounds),
             matrix_region: Some(bounds),
+            footprint: rqrr_footprint(bounds, grid.grid.size(), UNIT_PIXEL),
             locate,
             needs_confirmation: false,
             margin,
@@ -181,6 +185,7 @@ fn candidate<G>(
     Some(RescueCandidate {
         stream: masked(&raw_data),
         corners: corners(grid),
+        pixel: UNIT_PIXEL,
         version: u8::try_from(meta.version.0).ok()?,
         ec: map_ec(meta.ecc_level)?,
         mask: u8::try_from(meta.mask).ok()?,

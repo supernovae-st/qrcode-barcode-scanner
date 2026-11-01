@@ -10,6 +10,9 @@ pub(crate) mod content;
 #[cfg(feature = "engine-rxing")]
 mod databar_expanded;
 pub(crate) mod locate;
+#[cfg(feature = "engine-rxing")]
+mod multi_reader;
+pub(crate) mod occurrence;
 pub(crate) mod reconcile;
 #[cfg(feature = "engine-rqrr")]
 mod rqrr_engine;
@@ -83,6 +86,10 @@ pub(crate) struct RawDetection {
     /// Internal exclusion evidence only: never inferred from three finder
     /// centres and never substituted for published/scored geometry.
     pub matrix_region: Option<[Point; 4]>,
+    /// What the reader measured of the symbol's footprint, in attempt
+    /// space, before validation (`occurrence` module doc) — the published
+    /// occurrence geometry, independent of `corners` and `location`.
+    pub footprint: occurrence::Footprint,
     /// What the re-read needs, when it may run for this read: a port read
     /// whose modifier leaves its declarations unverified, an rqrr read whose
     /// grid decided nothing. Attempt space.
@@ -198,6 +205,7 @@ impl RawDetection {
             engine_reading: EngineReading::None,
             location: None,
             matrix_region: None,
+            footprint: occurrence::Footprint::unavailable(),
             locate: None,
             needs_confirmation: false,
             margin: crate::rescue::Margin::Unknown,
@@ -575,5 +583,318 @@ mod tests {
         assert_eq!(refusal.rqrr.as_deref(), Some(&b"abc"[..]));
         assert_eq!(refusal.place, place);
         assert!(Refusal::new(None, None, place).is_none());
+    }
+
+    // ── footprint coordinates (spec/01 § Occurrences) ───────────────────
+    //
+    // Edge convention: pixel (i, j) spans [i, i+1) × [j, j+1). The truth
+    // comes from the pixels of clean renders (two grey levels, whole-pixel
+    // modules), never from a reader.
+
+    /// The validated footprints every engine measures on `luma`.
+    fn footprints(luma: &LumaImage) -> Vec<(EngineKind, Symbology, occurrence::Footprint)> {
+        decode_all(luma)
+            .detections
+            .into_iter()
+            .map(|d| {
+                let footprint = d.footprint.validated((luma.width(), luma.height()));
+                (d.engine, d.symbology, footprint)
+            })
+            .collect()
+    }
+
+    /// A committed fixture as luma, turned clockwise by `quarters` quarter
+    /// turns.
+    fn turned(bytes: &[u8], quarters: u8) -> LumaImage {
+        let image = image::load_from_memory(bytes).unwrap().to_luma8();
+        let image = match quarters % 4 {
+            0 => image,
+            1 => image::imageops::rotate90(&image),
+            2 => image::imageops::rotate180(&image),
+            _ => image::imageops::rotate270(&image),
+        };
+        let (width, height) = image.dimensions();
+        LumaImage::new(image.into_raw(), width, height)
+    }
+
+    /// `luma` mirrored left to right when `turn` ≥ 4, then turned clockwise
+    /// `turn % 4` quarter turns — with the motion of a point (pixel edges
+    /// at integers) under the same transformation.
+    fn oriented(luma: &LumaImage, turn: u8) -> (LumaImage, impl Fn((f32, f32)) -> (f32, f32)) {
+        let (width, height) = (luma.width(), luma.height());
+        let image = image::GrayImage::from_raw(width, height, luma.data().to_vec()).unwrap();
+        let image = if turn >= 4 {
+            image::imageops::flip_horizontal(&image)
+        } else {
+            image
+        };
+        let image = match turn % 4 {
+            0 => image,
+            1 => image::imageops::rotate90(&image),
+            2 => image::imageops::rotate180(&image),
+            _ => image::imageops::rotate270(&image),
+        };
+        let (w, h) = (width as f32, height as f32);
+        let motion = move |(x, y): (f32, f32)| {
+            let x = if turn >= 4 { w - x } else { x };
+            match turn % 4 {
+                0 => (x, y),
+                1 => (h - y, x),
+                2 => (w - x, h - y),
+                _ => (y, w - x),
+            }
+        };
+        let (width, height) = image.dimensions();
+        (LumaImage::new(image.into_raw(), width, height), motion)
+    }
+
+    #[cfg(all(feature = "engine-rxing", feature = "engine-rqrr"))]
+    #[test]
+    fn qr_quads_are_the_symbols_outer_corners_from_either_engine_in_every_orientation() {
+        // the corners clockwise from the symbol's origin (module (0,0)), in
+        // all eight orientations: rqrr's anchor is undone (rqrr_anchor), rxing
+        // needs nothing
+        for scale in [3u32, 4, 5, 6, 7, 8, 11] {
+            for content in [&b"PROBE"[..], b"https://qrc-ai.com/occurrence-probe-longer"] {
+                let code = qrcode::QrCode::with_error_correction_level(content, qrcode::EcLevel::M)
+                    .unwrap();
+                let (upright, _) = qr_luma(content, qrcode::EcLevel::M, scale);
+                let edge = (4 * scale) as f32;
+                let far = edge + (u32::try_from(code.width()).unwrap() * scale) as f32;
+                for turn in 0..8u8 {
+                    let (luma, motion) = oriented(&upright, turn);
+                    let corners = [(edge, edge), (far, edge), (far, far), (edge, far)].map(&motion);
+                    let want = if turn >= 4 {
+                        [corners[0], corners[3], corners[2], corners[1]]
+                    } else {
+                        corners
+                    };
+                    let mut measured = Vec::new();
+                    for (engine, _, footprint) in footprints(&luma) {
+                        if footprint.kind != occurrence::Kind::Quad {
+                            continue;
+                        }
+                        for (got, (x, y)) in footprint.points.iter().zip(want) {
+                            assert!(
+                                (got.x - x).abs() <= 0.01 && (got.y - y).abs() <= 0.01,
+                                "scale {scale} turn {turn} {engine:?}: {:?} vs {want:?}",
+                                footprint.points
+                            );
+                        }
+                        measured.push(engine);
+                    }
+                    assert!(
+                        measured.contains(&EngineKind::Rxing)
+                            && measured.contains(&EngineKind::Rqrr),
+                        "scale {scale} turn {turn}: {measured:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Whether `c` is the centre of a pixel row or column.
+    fn on_centre(c: f32) -> bool {
+        (c - c.floor() - 0.5).abs() < 1e-4
+    }
+
+    #[cfg(feature = "engine-rxing")]
+    #[test]
+    fn linear_reads_are_measured_on_their_patterns_upright_reversed_and_rotated() {
+        // Code 128 `STOCK-4827`, 498 × 310, 3 px modules from x = 48 to 450:
+        // rxing measures the centre of the start pattern (48 + 5.5 modules)
+        // and of the stop character's first eleven modules (450 - 7.5
+        // modules), on the centre of the row it read. Turned a quarter, a
+        // half or three quarters, the same pixels move with the image: the
+        // reversed (180), rotated (270) and both (90) readings
+        const CODE128: &[u8] =
+            include_bytes!("../../../../fixtures/symbology/code128-stock-4827.png");
+        // EAN-13, 3 px modules: the guard centres, [17, 26) and [293, 302)
+        const EAN13: &[u8] = include_bytes!("../../../../fixtures/symbology/ean13.png");
+        let width = 498.0_f32;
+        let along = [64.5_f32, 427.5];
+        for quarters in 0..4u8 {
+            let luma = turned(CODE128, quarters);
+            let reads: Vec<_> = footprints(&luma)
+                .into_iter()
+                .filter(|(_, symbology, _)| *symbology == Symbology::Code128)
+                .collect();
+            assert!(!reads.is_empty(), "turn {quarters}");
+            let want = if quarters < 2 {
+                along
+            } else {
+                [width - along[1], width - along[0]]
+            };
+            for (_, _, footprint) in reads {
+                assert_eq!(footprint.kind, occurrence::Kind::Segment, "turn {quarters}");
+                let [a, b] = [footprint.points[0], footprint.points[1]];
+                // published in x, then y order
+                let (measured, across) = if quarters % 2 == 0 {
+                    ([a.x, b.x], [a.y, b.y])
+                } else {
+                    ([a.y, b.y], [a.x, b.x])
+                };
+                assert!(
+                    (measured[0] - want[0]).abs() <= 0.01 && (measured[1] - want[1]).abs() <= 0.01,
+                    "turn {quarters}: {footprint:?}, along {want:?}"
+                );
+                assert!(
+                    (across[0] - across[1]).abs() < 1e-4 && on_centre(across[0]),
+                    "turn {quarters}: one scan line on a pixel centre: {footprint:?}"
+                );
+            }
+        }
+        let luma = turned(EAN13, 0);
+        let reads: Vec<_> = footprints(&luma)
+            .into_iter()
+            .filter(|(_, symbology, _)| *symbology == Symbology::Ean13)
+            .collect();
+        assert!(!reads.is_empty(), "the EAN-13 fixture reads");
+        for (_, _, footprint) in reads {
+            assert_eq!(footprint.kind, occurrence::Kind::Segment);
+            let [a, b] = [footprint.points[0], footprint.points[1]];
+            assert!(
+                (a.x - 21.5).abs() <= 0.01 && (b.x - 297.5).abs() <= 0.01,
+                "{footprint:?}"
+            );
+            assert!((a.y - b.y).abs() < 1e-4 && on_centre(a.y), "{footprint:?}");
+        }
+    }
+
+    #[cfg(feature = "engine-rxing")]
+    #[test]
+    fn micro_and_rectangular_qr_quads_are_their_outer_corners_upright() {
+        // the truth is the box of the dark pixels: a Micro QR's timing
+        // patterns run to its right and bottom edges, an rMQR's along all four
+        for (bytes, symbology) in [
+            (
+                &include_bytes!("../../../../fixtures/symbology/microqr.png")[..],
+                Symbology::MicroQrCode,
+            ),
+            (
+                &include_bytes!("../../../../fixtures/symbology/rmqr-url-kanji.png")[..],
+                Symbology::RectangularMicroQrCode,
+            ),
+        ] {
+            let luma = turned(bytes, 0);
+            let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0, 0);
+            for row in 0..luma.height() {
+                for column in 0..luma.width() {
+                    if luma.data()[(row * luma.width() + column) as usize] < 128 {
+                        (x0, y0) = (x0.min(column), y0.min(row));
+                        (x1, y1) = (x1.max(column + 1), y1.max(row + 1));
+                    }
+                }
+            }
+            let want = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)].map(|(x, y)| (x as f32, y as f32));
+            let quads: Vec<_> = footprints(&luma)
+                .into_iter()
+                .filter(|(_, s, f)| *s == symbology && f.kind == occurrence::Kind::Quad)
+                .collect();
+            assert!(!quads.is_empty(), "{symbology:?}");
+            for (_, _, footprint) in quads {
+                for (got, (x, y)) in footprint.points.iter().zip(want) {
+                    assert!(
+                        (got.x - x).abs() <= 0.01 && (got.y - y).abs() <= 0.01,
+                        "{symbology:?}: {:?} vs {want:?}",
+                        footprint.points
+                    );
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "engine-rxing")]
+    #[test]
+    fn databar_finder_points_lie_on_bar_edges_upright_and_upside_down() {
+        // a finder's points are the edges of its first and last elements:
+        // where the colour of the row changes, read in either direction
+        const DATABAR: &[u8] = include_bytes!("../../../../fixtures/symbology/databar-gtin.png");
+        const EXPANDED: &[u8] =
+            include_bytes!("../../../../fixtures/symbology/databar-expanded-bwipp-regression.png");
+        for ((bytes, symbology), quarters) in [
+            (DATABAR, Symbology::DataBar),
+            (EXPANDED, Symbology::DataBarExpanded),
+        ]
+        .into_iter()
+        .flat_map(|case| [(case, 0u8), (case, 2)])
+        {
+            let luma = turned(bytes, quarters);
+            let reads: Vec<_> = footprints(&luma)
+                .into_iter()
+                .filter(|(_, s, _)| *s == symbology)
+                .collect();
+            assert!(!reads.is_empty(), "{symbology:?} turn {quarters}");
+            let dark =
+                |column: u32, row: u32| luma.data()[(row * luma.width() + column) as usize] < 128;
+            for (_, _, footprint) in reads {
+                assert_eq!(footprint.kind, occurrence::Kind::Partial, "turn {quarters}");
+                for p in &footprint.points {
+                    assert!(
+                        on_centre(p.y) && p.x.fract().abs() < 1e-4,
+                        "turn {quarters}: {p:?}"
+                    );
+                    #[expect(
+                        clippy::cast_possible_truncation,
+                        clippy::cast_sign_loss,
+                        reason = "validated in-image coordinates"
+                    )]
+                    let (column, row) = (p.x as u32, p.y.floor() as u32);
+                    assert!(
+                        column > 0
+                            && column < luma.width()
+                            && dark(column - 1, row) != dark(column, row),
+                        "turn {quarters}: {p:?} lies on no bar edge of {footprint:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "engine-rxing")]
+    #[test]
+    fn matrix_quads_lie_within_a_module_of_the_symbols_corners() {
+        /// A fixture, its symbology, the symbol's dark box and its module in
+        /// pixels.
+        type Case = (&'static [u8], Symbology, (f32, f32, f32, f32), f32);
+        let cases: [Case; 3] = [
+            (
+                include_bytes!("../../../../fixtures/symbology/datamatrix.png"),
+                Symbology::DataMatrix,
+                (60.0, 60.0, 180.0, 180.0),
+                6.0,
+            ),
+            (
+                include_bytes!("../../../../fixtures/symbology/pdf417.png"),
+                Symbology::Pdf417,
+                (8.0, 8.0, 282.0, 64.0),
+                2.0,
+            ),
+            (
+                include_bytes!("../../../../fixtures/symbology/aztec.png"),
+                Symbology::Aztec,
+                (51.0, 51.0, 189.0, 189.0),
+                6.0,
+            ),
+        ];
+        for (bytes, symbology, (x0, y0, x1, y1), module) in cases {
+            let luma = turned(bytes, 0);
+            let quads: Vec<_> = footprints(&luma)
+                .into_iter()
+                .filter(|(_, s, f)| *s == symbology && f.kind == occurrence::Kind::Quad)
+                .collect();
+            assert!(!quads.is_empty(), "{symbology:?}");
+            for (_, _, footprint) in quads {
+                // clockwise; compare as a set of corners
+                for corner in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)] {
+                    assert!(
+                        footprint.points.iter().any(|p| {
+                            (p.x - corner.0).abs() <= module && (p.y - corner.1).abs() <= module
+                        }),
+                        "{symbology:?}: no corner near {corner:?} in {footprint:?}"
+                    );
+                }
+            }
+        }
     }
 }

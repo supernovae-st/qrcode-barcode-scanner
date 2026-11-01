@@ -21,6 +21,32 @@
       },
       "engines": [
         "rxing"
+      ],
+      "occurrences": [
+        {
+          "geometry": {
+            "kind": "partial",
+            "points": [
+              {
+                "x": 171.88573,
+                "y": 852.1143
+              },
+              {
+                "x": 170.66667,
+                "y": 171.88573
+              },
+              {
+                "x": 852.1143,
+                "y": 171.88573
+              },
+              {
+                "x": 759.4667,
+                "y": 759.4667
+              }
+            ],
+            "reader": "rxing"
+          }
+        }
       ]
     }
   ],
@@ -87,35 +113,40 @@
       {
         "stage": "pyramid",
         "transforms_tried": 1,
-        "ms": 27.740125000000003,
+        "ms": 21.639417,
         "detections_found": 0
       },
       {
         "stage": "direct",
         "transforms_tried": 1,
-        "ms": 70.180459,
+        "ms": 54.579665999999996,
         "detections_found": 0
       },
       {
         "stage": "enhance",
         "transforms_tried": 6,
-        "ms": 410.065375,
+        "ms": 372.408208,
         "detections_found": 0
       },
       {
         "stage": "deep",
         "transforms_tried": 25,
-        "ms": 234.843541,
+        "ms": 151.82025,
         "detections_found": 2
       }
     ],
     "engine_panics": 0,
-    "total_ms": 743.042833,
-    "budget_exhausted": false
+    "total_ms": 600.567375,
+    "budget_exhausted": false,
+    "saturation": {
+      "reads": false,
+      "detections": false,
+      "occurrences": false
+    }
   },
   "versions": {
     "scanner": "0.11.0",
-    "pipeline": 4,
+    "pipeline": 5,
     "score_contract": 5
   }
 }

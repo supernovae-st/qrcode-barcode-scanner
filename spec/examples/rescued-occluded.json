@@ -38,6 +38,32 @@
       },
       "engines": [
         "rescue"
+      ],
+      "occurrences": [
+        {
+          "geometry": {
+            "kind": "quad",
+            "points": [
+              {
+                "x": 32.0,
+                "y": 32.0
+              },
+              {
+                "x": 328.0,
+                "y": 32.0
+              },
+              {
+                "x": 328.0,
+                "y": 328.0
+              },
+              {
+                "x": 32.0,
+                "y": 328.0
+              }
+            ],
+            "reader": "rqrr"
+          }
+        }
       ]
     }
   ],
@@ -147,35 +173,40 @@
       {
         "stage": "direct",
         "transforms_tried": 1,
-        "ms": 20.633374999999997,
+        "ms": 18.204417,
         "detections_found": 0
       },
       {
         "stage": "enhance",
         "transforms_tried": 3,
-        "ms": 59.495958,
+        "ms": 56.418375,
         "detections_found": 0
       },
       {
         "stage": "deep",
         "transforms_tried": 17,
-        "ms": 74.573375,
+        "ms": 51.534292,
         "detections_found": 0
       },
       {
         "stage": "rescue",
         "transforms_tried": 1,
-        "ms": 0.070625,
+        "ms": 0.06525,
         "detections_found": 1
       }
     ],
     "engine_panics": 0,
-    "total_ms": 154.80137499999998,
-    "budget_exhausted": false
+    "total_ms": 126.24566700000001,
+    "budget_exhausted": false,
+    "saturation": {
+      "reads": false,
+      "detections": false,
+      "occurrences": false
+    }
   },
   "versions": {
     "scanner": "0.11.0",
-    "pipeline": 4,
+    "pipeline": 5,
     "score_contract": 5
   }
 }

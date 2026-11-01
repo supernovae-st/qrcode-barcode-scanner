@@ -34,8 +34,12 @@ dependencies {
 
 `scan(...)` returns the `ScanReport` as a **JSON String** (the cross-surface
 wire SSOT — same bytes as the Python / Node / WASM bindings). Decode it with
-`kotlinx.serialization` against `spec/scan-report.schema.json`. Run it off the
-main thread — the scan is synchronous.
+`kotlinx.serialization` against `spec/scan-report.schema.json`, leniently: the
+wire grows by additive keys and enum values (pipeline 5 added
+`detections[].occurrences` and `trace.saturation`), so build the decoder with
+`Json { ignoreUnknownKeys = true }`, give new keys defaults, and read enum-like
+values such as `geometry.kind` as `String` or with an unknown fallback. Run it
+off the main thread — the scan is synchronous.
 
 UniFFI 0.31 emits the API into the package `uniffi.qrcode_ai_scanner_uniffi`
 (derived from the crate's `[lib] name`), while the `.so`/AAR ships under the

@@ -8,7 +8,7 @@ enum WIRE VALUES *and* on struct FIELD NAMES.
 
 Surfaces compared:
   enums   : Symbology · EngineKind · EcLevel · Charset · Grade · UecGrade ·
-            IsoGrade · StressAxis          (rust ↔ ts ↔ schema ↔ dart)
+            IsoGrade · StressAxis · GeometryKind (rust ↔ ts ↔ schema ↔ dart)
   payloads: payload.rs Payload             (rust ↔ ts kinds ↔ schema ↔ dart)
   hints   : report.rs  Hint                (rust ↔ ts tags  ↔ schema ↔ dart)
   structs : every contract struct's serde field names
@@ -59,6 +59,8 @@ CONTRACT_STRUCTS = [
     (REPORT_RS, "DecodedContent"),
     (REPORT_RS, "QrMeta"),
     (REPORT_RS, "Detection"),
+    (REPORT_RS, "Occurrence"),
+    (REPORT_RS, "OccurrenceGeometry"),
     (REPORT_RS, "AxisScore"),
     (REPORT_RS, "StructuralReport"),
     (REPORT_RS, "UecReport"),
@@ -70,6 +72,7 @@ CONTRACT_STRUCTS = [
     (REPORT_RS, "AlphaEnvelope"),
     (REPORT_RS, "AlphaReport"),
     (REPORT_RS, "StageTrace"),
+    (REPORT_RS, "Saturation"),
     (REPORT_RS, "PipelineTrace"),
     (REPORT_RS, "Versions"),
     (REPORT_RS, "ScanReport"),
@@ -84,7 +87,8 @@ OPTIONAL_FIELDS: dict[str, set[str]] = {
     "Score": {"weights_run"},
     "AxisScore": {"refined_failed_at"},
     "DecodedContent": {"eci", "fnc1"},
-    "PipelineTrace": {"budget_exhausted"},
+    "Detection": {"occurrences"},
+    "PipelineTrace": {"budget_exhausted", "saturation"},
 }
 
 # Flat enums with a same-named schema $def (rust ↔ ts ↔ schema).
@@ -99,6 +103,7 @@ FLAT_ENUMS = [
     "StressAxis",
     "AlphaMode",
     "AlphaPlacement",
+    "GeometryKind",
 ]
 
 # Dart enums whose wire values mirror a same-named Rust enum. UecGrade/IsoGrade
@@ -113,6 +118,7 @@ DART_ENUMS = [
     "StressAxis",
     "AlphaMode",
     "AlphaPlacement",
+    "GeometryKind",
 ]
 
 

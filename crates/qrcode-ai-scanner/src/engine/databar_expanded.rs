@@ -194,6 +194,9 @@ impl Reader for RSSExpandedReader {
             let tryHarder = hints.TryHarder.unwrap_or(false);
             if tryHarder && image.is_rotate_supported() {
                 let mut rotatedImage = image.rotate_counter_clockwise();
+                // the rows stored by the upright pass lie in another frame:
+                // never assembled with the rotated image's
+                self.reset();
                 let mut result = self._do_decode(&mut rotatedImage, hints)?;
                 // Record that we found it rotated 90 degrees CCW / 270 degrees CW
                 let metadata = result.getRXingResultMetadata();

@@ -108,7 +108,7 @@ fn main() {
     command = [str(binary), str(fixture), "--profile", "full", "--budget-ms", "0"]
     report = json.loads(run(command, consumer, env))
     text = "https://qrcode-ai.com/c/v5q"
-    assert report["versions"] == {"scanner": args.version, "pipeline": 4, "score_contract": 5}
+    assert report["versions"] == {"scanner": args.version, "pipeline": 5, "score_contract": 5}
     assert [d["content"] for d in report["detections"]] == [
         {"text": text, "raw": base64.b64encode(text.encode()).decode(), "charset": "utf8"}]
     assert report["score"]["value"] == 100 and report["trace"]["budget_exhausted"] is False

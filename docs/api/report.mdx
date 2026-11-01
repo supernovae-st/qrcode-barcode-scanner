@@ -71,10 +71,18 @@ Machine-readable mirrors — load these directly in tools and agents:
   (a stage or attempt, a rescue candidate, a score cell, a knee
   bisection, an envelope probe) — partial. Absent on older reports:
   unknown, never final.
+  `saturation` (pipeline ≥ 5) says which capacities the scan reached,
+  whatever the budget: `reads` (distinct reads past a walk's 64, or refusal
+  records that failed closed), `detections` (contents past the 16
+  published), `occurrences` (a detection's copies incomplete). A `true`
+  flag means what was left out is unknown, not absent. Absent on older
+  reports.
 </ResponseField>
 
 <ResponseField name="versions" type="Versions" required>
-  Contract markers: `scanner` (semver), `pipeline` (4: native-resolution linear completion after QR pyramid success; 3 introduced exact content —
+  Contract markers: `scanner` (semver), `pipeline` (5: every physical copy
+  of a content measured as an occurrence, and the capacities a scan reached
+  published; 4 added native-resolution linear completion after QR pyramid success; 3 introduced exact content —
   the original bytes, declarations read once, reads reconciled by content
   identity; since 2, transparent inputs flatten before decode),
   `score_contract` (5: the correction-margin cap on the verified
@@ -138,6 +146,22 @@ Machine-readable mirrors — load these directly in tools and agents:
   `low_correction_margin` hint).
 </ResponseField>
 
+<ResponseField name="occurrences" type="Occurrence[]">
+  Where each physical copy of this content was measured — 1 to 16,
+  earliest observed first (pipeline ≥ 5; absent on older reports). Two
+  printed copies of one content are ONE detection with two occurrences.
+  Each `geometry` is what a reader measured, never completed or invented:
+  `quad` (four outer corners, clockwise, y down; for the QR family the
+  first is the symbol's origin corner in every rotation, mirrored or not) ·
+  `segment` (two points along a linear reader's scan line — neither the
+  symbol's extent nor its height) · `partial` (1–8 points forming no
+  validated shape, such as finder centres) · `unavailable` (nothing
+  measured; `reader` is `null`). `reader` is `rxing` or `rqrr` — never
+  `rescue`: a rescued grid is rqrr's. Independent of `corners`, which keep
+  rqrr's grid frame. Rules:
+  [`spec/01-report.md` § Occurrences](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/main/spec/01-report.md).
+</ResponseField>
+
 ## Example — a rescued, logo-occluded symbol
 
 ```json
@@ -149,7 +173,10 @@ Machine-readable mirrors — load these directly in tools and agents:
     "corners": [{ "x": 32.0, "y": 32.0 }, { "x": 336.0, "y": 32.0 },
                  { "x": 336.0, "y": 336.0 }, { "x": 32.0, "y": 336.0 }],
     "meta": { "version": 5, "ec_level": "h", "mask": 3, "modules": 37, "inverted": false },
-    "engines": ["rescue"]
+    "engines": ["rescue"],
+    "occurrences": [{ "geometry": { "kind": "quad", "reader": "rqrr", "points": [
+      { "x": 32.0, "y": 32.0 }, { "x": 328.0, "y": 32.0 },
+      { "x": 328.0, "y": 328.0 }, { "x": 32.0, "y": 328.0 }] } }]
   }],
   "score": { "value": 0, "grade": "poor", "weights_run": 100, "axes": ["…"],
              "structural": { "finder_integrity": [1.0, 1.0, 1.0], "quiet_zone_ok": true },
@@ -163,14 +190,18 @@ Machine-readable mirrors — load these directly in tools and agents:
     { "stage": "enhance", "transforms_tried": 3, "ms": 58.8, "detections_found": 0 },
     { "stage": "deep", "transforms_tried": 17, "ms": 75.4, "detections_found": 0 },
     { "stage": "rescue", "transforms_tried": 1, "ms": 0.1, "detections_found": 1 }
-  ], "engine_panics": 0, "total_ms": 153.8, "budget_exhausted": false },
-  "versions": { "scanner": "0.11.0", "pipeline": 4, "score_contract": 5 }
+  ], "engine_panics": 0, "total_ms": 153.8, "budget_exhausted": false,
+     "saturation": { "reads": false, "detections": false, "occurrences": false } },
+  "versions": { "scanner": "0.11.0", "pipeline": 5, "score_contract": 5 }
 }
 ```
 
 Trimmed from the golden
 [`spec/examples/rescued-occluded.json`](https://github.com/supernovae-st/qrcode-barcode-scanner/blob/main/spec/examples/rescued-occluded.json),
-scanned unbounded (`--budget-ms 0`), so the report is final. Its `uec` is
+scanned unbounded (`--budget-ms 0`), so the report is final. Its
+occurrence is the symbol's outer box (37 modules × 8 px from 32 px), while
+`corners` keep rqrr's grid frame, one module past the symbol's last row
+and column. Its `uec` is
 not a count of corrected errors: with `rescue` among the engines,
 `worst_block_errors: 11` is the errors-only count of the stream the rescue
 corrected with erasures — 11 of 22, margin 0 — a distrust marker, which

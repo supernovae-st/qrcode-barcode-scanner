@@ -110,7 +110,7 @@ if (mode === "native") {
   assert.throws(() => qr.scan_frame(new Uint8Array(10), 2, 2), /\[QRS-004\]/);
 }
 assert.equal(qr.version(), expectedVersion);
-assert.deepEqual(full.versions, { scanner: expectedVersion, pipeline: 4, score_contract: 5 });
+assert.deepEqual(full.versions, { scanner: expectedVersion, pipeline: 5, score_contract: 5 });
 assert.equal(full.trace.budget_exhausted, false);
 assert.equal(full.detections.length, 1);
 assert.equal(full.detections[0].symbology, "qr_code");

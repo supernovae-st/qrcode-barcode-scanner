@@ -33,6 +33,7 @@
 //! published.
 
 use super::content::{ContentKey, DoubleByteSpan, EciEvidence, EngineReading, Fnc1, Segments};
+use super::occurrence::{self, Observation};
 use super::{MaskedStream, Refusal};
 use crate::report::{EcLevel, EngineKind, Point, Symbology};
 use crate::rescue::Margin;
@@ -124,6 +125,13 @@ pub(crate) struct Read {
     /// Actual outer-corner observations, independent of published geometry.
     /// Three-finder reconstructions never enter this bounded collection.
     pub(crate) matrix_regions: Vec<[Point; 4]>,
+    /// The validated footprints its reads measured (original space): the
+    /// earliest [`occurrence::MAX_OBSERVATIONS`] distinct ones by rank,
+    /// grouped into the published occurrences. Separate from `places`,
+    /// which only keep refusals and joins apart.
+    pub(crate) observations: Vec<Observation>,
+    /// A footprint was left out past [`occurrence::MAX_OBSERVATIONS`].
+    pub(crate) observations_dropped: bool,
     /// What it measured.
     pub(crate) geometry: Geometry,
     /// The ranks of the reads its location and geometry parts come from.
@@ -171,6 +179,8 @@ impl Read {
             location: None,
             places: Vec::new(),
             matrix_regions: Vec::new(),
+            observations: Vec::new(),
+            observations_dropped: false,
             geometry: Geometry::default(),
             sources: Sources {
                 location: rank,
@@ -220,11 +230,16 @@ impl Read {
                 self.places.push(place);
             }
         }
+        // the masks of the non-QR search: one per copy it may publish
         for region in other.matrix_regions {
-            if self.matrix_regions.len() < MAX_PLACES && !recorded(&self.matrix_regions, region) {
+            if self.matrix_regions.len() < occurrence::MAX_OCCURRENCES
+                && !recorded(&self.matrix_regions, region)
+            {
                 self.matrix_regions.push(region);
             }
         }
+        self.observations_dropped |= other.observations_dropped
+            | occurrence::merge(&mut self.observations, other.observations);
         let take = |own: bool, own_rank: Rank, theirs: bool, their_rank: Rank| {
             theirs && (!own || their_rank < own_rank)
         };
@@ -354,6 +369,18 @@ impl Refused {
         self.places
             .as_ref()
             .is_none_or(|places| recorded(places, place))
+    }
+
+    /// Whether it refused the read's content: the port's account agrees, or
+    /// rqrr decoded the same bytes.
+    fn names_content(&self, read: &Read) -> bool {
+        self.port
+            .as_ref()
+            .is_some_and(|port| port.agrees(&read.key))
+            || self
+                .rqrr
+                .as_ref()
+                .is_some_and(|bytes| *bytes == read.key.raw)
     }
 
     /// The refusals that record it again: one per place, or one without a
@@ -512,26 +539,48 @@ impl ReadStore {
         {
             return None;
         }
-        let refusals = self.refusals.iter().chain(
-            self.overflow
-                .iter()
-                .filter(|refused| read.last_attempt <= refused.attempt),
-        );
+        let refusals = || {
+            self.refusals.iter().chain(
+                self.overflow
+                    .iter()
+                    .filter(|refused| read.last_attempt <= refused.attempt),
+            )
+        };
         let mut rqrr_withheld = false;
-        for refusal in refusals {
+        for refusal in refusals() {
             match cover(refusal, read) {
                 Cover::Whole => return None,
                 Cover::Rqrr => rqrr_withheld = true,
                 Cover::Nothing => {}
             }
         }
-        if !rqrr_withheld {
-            return Some(read.clone());
-        }
         let mut read = read.clone();
-        read.engines
-            .retain(|(engine, _)| *engine != EngineKind::Rqrr);
-        read.rank = read.engines.iter().map(|(_, rank)| *rank).min()?;
+        if rqrr_withheld {
+            read.engines
+                .retain(|(engine, _)| *engine != EngineKind::Rqrr);
+            read.rank = read.engines.iter().map(|(_, rank)| *rank).min()?;
+        }
+        // an unparsed QR Code read standing by its other places publishes
+        // no copy where a placed refusal of its content holds: that copy's
+        // stream was proved malformed
+        if read.symbology == Symbology::QrCode && !read.parsed {
+            let holding: Vec<&Refused> = refusals()
+                .filter(|refused| refused.places.is_some() && refused.names_content(&read))
+                .collect();
+            read.observations.retain(|observation| {
+                !observation.footprint.centre().is_some_and(|(x, y)| {
+                    #[expect(
+                        clippy::cast_possible_truncation,
+                        reason = "image coordinates bounded by Limits::max_dimension"
+                    )]
+                    let at = [Point {
+                        x: x as f32,
+                        y: y as f32,
+                    }; 4];
+                    holding.iter().any(|refused| refused.holds(at))
+                })
+            });
+        }
         Some(read)
     }
 
@@ -591,12 +640,21 @@ impl ReadStore {
                 continue;
             }
             for region in read.matrix_regions {
-                if regions.len() < MAX_DETECTIONS * MAX_PLACES && !recorded(&regions, region) {
+                if regions.len() < MAX_DETECTIONS * occurrence::MAX_OCCURRENCES
+                    && !recorded(&regions, region)
+                {
                     regions.push(region);
                 }
             }
         }
         regions
+    }
+
+    /// Whether refused streams past every record closed the walk: its
+    /// unparsed QR Code reads up to then are withheld for want of records,
+    /// not refused (saturation of the reads).
+    pub(crate) fn failed_closed(&self) -> bool {
+        self.closed.is_some()
     }
 
     /// Whether a QR Code read the scanner has not parsed stands — what
@@ -653,6 +711,12 @@ impl ReadStore {
     /// acceptance admits.
     pub(crate) fn reconcile(&self) -> Vec<Reconciled> {
         reconcile(self.accepted())
+    }
+
+    /// [`ReadStore::reconcile`], and whether contents were left out past
+    /// [`MAX_DETECTIONS`].
+    pub(crate) fn reconcile_counted(&self) -> (Vec<Reconciled>, bool) {
+        reconcile_counted(self.accepted())
     }
 
     /// The refusal records kept, within capacity and past it.
@@ -736,6 +800,11 @@ pub(crate) struct Reconciled {
     pub(crate) geometry: Geometry,
     /// Its earliest read.
     pub(crate) rank: Rank,
+    /// The footprints its reads measured ([`occurrence::union`]), grouped
+    /// into occurrences at publication.
+    pub(crate) observations: Vec<Observation>,
+    /// A footprint of its reads was left out past a capacity.
+    pub(crate) observations_dropped: bool,
 }
 
 /// Whether the centre of a read's corner points lies inside the box of a
@@ -805,7 +874,13 @@ fn identity(eci: &EciEvidence, fnc1: Fnc1) -> Identity {
 }
 
 /// Reconcile a read set (the module doc; spec/07 property 6).
-pub(crate) fn reconcile(mut reads: Vec<Read>) -> Vec<Reconciled> {
+pub(crate) fn reconcile(reads: Vec<Read>) -> Vec<Reconciled> {
+    reconcile_counted(reads).0
+}
+
+/// [`reconcile`], and whether contents were left out past
+/// [`MAX_DETECTIONS`].
+pub(crate) fn reconcile_counted(mut reads: Vec<Read>) -> (Vec<Reconciled>, bool) {
     // a total order: ranks are distinct within a walk; constructed sets
     // that share one fall back to the content
     reads.sort_by(|a, b| {
@@ -844,8 +919,9 @@ pub(crate) fn reconcile(mut reads: Vec<Read>) -> Vec<Reconciled> {
         .filter(|detection| !detection.engines.is_empty())
         .collect();
     detections.sort_by_key(|detection| (!detection.symbology.is_qr_family(), detection.rank));
+    let saturated = detections.len() > MAX_DETECTIONS;
     detections.truncate(MAX_DETECTIONS);
-    detections
+    (detections, saturated)
 }
 
 /// Steps 1-3 within one (symbology, raw) group, its reads in order.
@@ -985,6 +1061,11 @@ fn published(forming: Forming) -> Reconciled {
         .map_or((Symbology::QrCode, Vec::new()), |m| {
             (m.symbology, m.key.raw.clone())
         });
+    let (observations, observations_dropped) = occurrence::union(
+        members
+            .iter()
+            .map(|m| (m.observations.as_slice(), m.observations_dropped)),
+    );
     Reconciled {
         symbology,
         key: ContentKey { raw, eci, fnc1 },
@@ -993,6 +1074,8 @@ fn published(forming: Forming) -> Reconciled {
         engines: engines.into_iter().map(|(engine, _)| engine).collect(),
         geometry,
         rank,
+        observations,
+        observations_dropped,
     }
 }
 
@@ -1147,6 +1230,52 @@ mod tests {
         // region and must not become an exclusion polygon.
         store.collect(read(4, b"inferred", NoEci, X, Some(810.0)));
         assert_eq!(store.qr_regions(), [square_at(10.0), square_at(210.0)]);
+    }
+
+    /// A read of `raw` at the `n`-th of a row of disjoint squares, its
+    /// measured region recorded.
+    #[cfg(feature = "engine-rxing")]
+    fn region_read(n: u16, raw: &[u8]) -> Read {
+        let x = 200.0 * f32::from(n);
+        let mut hit = read(u32::from(n), raw, NoEci, X, Some(x));
+        hit.matrix_regions.push(square_at(x));
+        hit
+    }
+
+    #[test]
+    #[cfg(feature = "engine-rxing")]
+    fn one_content_masks_its_first_sixteen_regions_and_no_seventeenth() {
+        let mut store = ReadStore::default();
+        for n in 0..17 {
+            store.collect(region_read(n, b"copies"));
+        }
+        let first: Vec<[Point; 4]> = (0..16_u16)
+            .map(|n| square_at(200.0 * f32::from(n)))
+            .collect();
+        assert_eq!(store.qr_regions(), first);
+    }
+
+    #[test]
+    #[cfg(feature = "engine-rxing")]
+    fn the_masked_regions_stop_at_two_hundred_fifty_six_in_all() {
+        // seventeen contents of sixteen regions each, every region its own
+        let mut store = ReadStore::default();
+        for content in 0..17_u16 {
+            let raw = format!("content {content}");
+            for copy in 0..16 {
+                store.collect(region_read(content * 16 + copy, raw.as_bytes()));
+            }
+        }
+        let regions = store.qr_regions();
+        assert_eq!(regions.len(), MAX_DETECTIONS * occurrence::MAX_OCCURRENCES);
+        assert_eq!(regions.len(), 256);
+        assert!(
+            regions
+                .iter()
+                .enumerate()
+                .all(|(i, own)| !recorded(&regions[..i], *own)),
+            "every masked region is distinct"
+        );
     }
 
     /// The read, parsed by the scanner.
@@ -1742,6 +1871,48 @@ mod tests {
         // a read without a place never fails the place test
         let store = store_with(read(0, b"abc", Signalled, X, NOWHERE), port(b"abc", R));
         assert_eq!(published(&store).len(), 0);
+    }
+
+    #[test]
+    fn a_standing_read_publishes_no_copy_where_its_refusal_holds() {
+        // an unparsed read made at both places stands by the copy elsewhere;
+        // the refused copy is not one of its occurrences
+        let observed = |x: f32, attempt: u32| occurrence::Observation {
+            footprint: occurrence::Footprint::candidate(
+                occurrence::Kind::Quad,
+                square_at(x).to_vec(),
+                Rxing,
+            )
+            .validated((1000, 1000)),
+            rank: Rank {
+                attempt,
+                source: 0,
+                index: 0,
+            },
+            side: 1000,
+        };
+        let at = |n: u32, x: Option<f32>| {
+            let mut hit = read(n, b"abc", Signalled, X, x);
+            hit.observations.push(observed(x.unwrap(), n));
+            hit
+        };
+        let mut twice = at(0, R);
+        twice.fold(at(1, L));
+        let store = store_with(twice.clone(), port(b"abc", R));
+        let [detection] = &store.reconcile()[..] else {
+            panic!("{:?}", store.reconcile());
+        };
+        assert_eq!(detection.observations, vec![observed(L.unwrap(), 1)]);
+        // a refusal of another content holds nothing of it
+        let store = store_with(twice.clone(), port(b"xyz", R));
+        assert_eq!(store.reconcile()[0].observations.len(), 2);
+        // nor does one without a place (it would withhold the read whole)
+        let store = store_with(parsed(twice), port(b"abc", R));
+        assert_eq!(
+            store.reconcile()[0].observations.len(),
+            2,
+            "parsed: no refusal applies"
+        );
     }
 
     #[test]

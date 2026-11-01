@@ -45,6 +45,10 @@ pub(crate) struct RescueCandidate {
     pub stream: MaskedStream,
     /// Corners in ORIGINAL image space (rescaled by the ladder).
     pub corners: [Point; 4],
+    /// One pixel of the plane the engine measured the grid on, in the
+    /// corners' space: rescaled with them, so the reported footprint undoes
+    /// the engine's anchor in that plane's pixels.
+    pub pixel: Point,
     pub version: u8,
     pub ec: EcLevel,
     pub mask: u8,
@@ -570,6 +574,7 @@ mod probe {
                     x: p.x as f32,
                     y: p.y as f32,
                 }),
+                pixel: crate::engine::occurrence::UNIT_PIXEL,
                 version: u8::try_from(meta.version.0).unwrap(),
                 ec: match meta.ecc_level {
                     0 => EcLevel::M,
@@ -671,6 +676,7 @@ mod differential {
                         x: p.x as f32,
                         y: p.y as f32,
                     }),
+                    pixel: crate::engine::occurrence::UNIT_PIXEL,
                     version: u8::try_from(meta.version.0).unwrap(),
                     ec: match meta.ecc_level {
                         0 => EcLevel::M,
@@ -1040,6 +1046,7 @@ mod codewords {
                         x: p.x as f32,
                         y: p.y as f32,
                     }),
+                    pixel: crate::engine::occurrence::UNIT_PIXEL,
                     version: u8::try_from(meta.version.0).unwrap(),
                     ec: match meta.ecc_level {
                         0 => EcLevel::M,
@@ -1299,6 +1306,7 @@ mod codewords {
                 x: p.x as f32,
                 y: p.y as f32,
             }),
+            pixel: crate::engine::occurrence::UNIT_PIXEL,
             version: u8::try_from(meta.version.0).unwrap(),
             ec: sampled.ec,
             mask: u8::try_from(meta.mask).unwrap(),
@@ -1607,6 +1615,7 @@ mod pins {
                     y: DIM as f32,
                 },
             ],
+            pixel: crate::engine::occurrence::UNIT_PIXEL,
             version: 1,
             ec: EcLevel::M,
             mask: 0,

@@ -10,11 +10,16 @@ expression: "ScanReport::empty()"
     "stages": [],
     "engine_panics": 0,
     "total_ms": 0.0,
-    "budget_exhausted": false
+    "budget_exhausted": false,
+    "saturation": {
+      "reads": false,
+      "detections": false,
+      "occurrences": false
+    }
   },
   "versions": {
     "scanner": "[crate-version]",
-    "pipeline": 4,
+    "pipeline": 5,
     "score_contract": 5
   }
 }
