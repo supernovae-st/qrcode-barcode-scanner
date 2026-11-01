@@ -1710,9 +1710,9 @@ REUSABLE = """
     uses: someone/workflows/.github/workflows/publish.yml@main
     secrets: inherit
 """
-ALL_WORKFLOWS = ("ci.yml", "crates-publish.yml", "deep-checks.yml", "flutter.yml", "mobile.yml", "npm-publish.yml",
-                 "python.yml", "toolchain-probe.yml")
-PIN_LINE = '  RUST_TOOLCHAIN: "1.97.0"\n'
+ALL_WORKFLOWS = ("ci.yml", "crates-publish.yml", "debt-mutations.yml", "deep-checks.yml", "flutter.yml",
+                 "mobile.yml", "npm-publish.yml", "python.yml", "registry-consumers-0101.yml", "toolchain-probe.yml")
+PIN_LINE = '  RUST_TOOLCHAIN: "1.99.1"\n'
 
 # (name, mode, edits [(workflow, old, new)], extra files {path: text}, exit, needle).
 # The real tree passes both modes; each mutated copy must exit as said, with
@@ -2233,7 +2233,7 @@ MUTATIONS = (
     ("maturin on a literal toolchain", T, [("python.yml", "rust-toolchain: ${{ env.RUST_TOOLCHAIN }}",
                                             "rust-toolchain: 1.96.0")], {}, 1, "rust-toolchain '1.96.0'"),
     ("RUSTUP_TOOLCHAIN in a workflow env", T, [("ci.yml", "  RUSTFLAGS: -D warnings\n", "  RUSTFLAGS: -D warnings\n"
-                                                "  RUSTUP_TOOLCHAIN: 1.97.0\n")], {}, 1, "RUSTUP_TOOLCHAIN overrides"),
+                                                "  RUSTUP_TOOLCHAIN: 1.99.1\n")], {}, 1, "RUSTUP_TOOLCHAIN overrides"),
     ("the MSRV leg below rust-version", T, [("ci.yml", "dtolnay/rust-toolchain@1.88", "dtolnay/rust-toolchain@1.87")],
      {}, 1, "the one literal is the MSRV leg"),
     ("the MSRV leg by SHA, no toolchain input", T, [("ci.yml", "dtolnay/rust-toolchain@1.88",

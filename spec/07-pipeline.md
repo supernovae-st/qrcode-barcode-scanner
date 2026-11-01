@@ -31,14 +31,16 @@ Normative properties:
    determinism caveats in 04-score.md).
 2. **Stage early-exit** — a stage that finds something still COMPLETES
    (within-stage consensus preserved). When a downscaled pyramid finds a QR
-   code, the enabled direct stage first completes a linear-only read at input
-   resolution, within the ordinary budget and cancellation checks. A narrow
-   barcode lost during downscaling must not be suppressed by that QR success.
+   code, the enabled direct stage first completes a non-QR read at input
+   resolution, within the ordinary budget and cancellation checks. Narrow
+   barcode bars and small matrix modules lost during downscaling must not be
+   suppressed by that QR success. This pass excludes all three QR formats and
+   does not rerun rqrr; it covers the retained linear and other matrix families.
    Both reads enter the same content reconciliation; the completion uses the
    existing `direct` trace stage. Only during this complementary pass, the
    measured convex regions of already admitted QR reads are masked on its
    cloned work plane, so their module texture cannot become a neighboring
-   linear detection. The regions require four points measured by a reader;
+   non-QR detection. The regions require four points measured by a reader;
    reconstructed finder-center quadrilaterals are excluded. The original plane
    and scoring input stay unchanged. The ladder then stops, unless among
    the reads collected so far (refused and withheld reads excluded) there

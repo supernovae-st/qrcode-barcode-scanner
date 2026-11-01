@@ -36,7 +36,7 @@ env:
   # (cargokit/build_tool/lib/src/options.dart), so the device builds below
   # use the moving stable — as does every consuming app's build. pub.dev
   # ships the sources, not those binaries.
-  RUST_TOOLCHAIN: "1.97.0"
+  RUST_TOOLCHAIN: "1.99.1"
 
 jobs:
   stage:

@@ -252,10 +252,11 @@ fn inject_probe_panic(filter: FormatFilter) {
 pub(crate) enum FormatFilter {
     /// Everything rxing supports + rqrr.
     All,
-    /// Linear barcodes only: complete their native-resolution read after a
-    /// QR succeeds on a downscaled pyramid image.
+    /// Every non-QR family: complete their native-resolution read after a
+    /// QR succeeds on a downscaled pyramid image. Narrow bars and small
+    /// matrix modules can both disappear in that downscale.
     #[cfg(feature = "engine-rxing")]
-    Linear,
+    NonQr,
     /// QR · Micro QR · rMQR (+ rqrr) — the artistic-recovery stages are
     /// QR-calibrated; paying the 1D/PDF417/DataMatrix detectors on every
     /// deep rung starves the budget for nothing.
@@ -354,6 +355,17 @@ mod tests {
         assert_eq!(text, payload);
         assert_eq!(d.raw, payload.as_bytes());
         assert_eq!(d.ec, Some(EcLevel::Q));
+        assert_eq!(outcome.panics, 0);
+    }
+
+    #[cfg(feature = "engine-rxing")]
+    #[test]
+    fn non_qr_completion_does_not_repeat_either_qr_engine() {
+        let (luma, _) = qr_luma(b"already read by the pyramid", qrcode::EcLevel::M, 6);
+        let outcome = decode_filtered(&luma, FormatFilter::NonQr);
+        assert!(outcome.detections.is_empty());
+        assert!(outcome.rescue.is_empty());
+        assert!(outcome.refused.is_empty());
         assert_eq!(outcome.panics, 0);
     }
 

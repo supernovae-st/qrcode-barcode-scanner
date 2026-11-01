@@ -1300,7 +1300,7 @@ fn rescaled(mut corners: [Point; 4], from: (u32, u32), to: (u32, u32)) -> [Point
     corners
 }
 
-/// The linear-only completion searches outside already decoded QR symbols.
+/// The non-QR completion searches outside already decoded QR symbols.
 /// Preserve every pixel outside the actual convex footprint: its bounding
 /// rectangle could also contain a genuine adjacent barcode. This plane is
 /// never used to measure or score the original symbols.
@@ -1402,9 +1402,9 @@ pub(crate) fn run_seeded(
             )?;
             if stop || run.store.settled() {
                 // A QR surviving the thumbnail says nothing about a nearby
-                // linear barcode: its narrow bars may have disappeared in
-                // that downscale. Complete the enabled direct stage for the
-                // linear family before accepting the pyramid's early exit.
+                // barcode or matrix code: its narrow bars or small modules
+                // may have disappeared in that downscale. Complete the enabled
+                // direct stage for non-QR families before accepting the exit.
                 // This remains a planned, budgeted attempt, with ordinary
                 // cancellation and trace accounting.
                 #[cfg(feature = "engine-rxing")]
@@ -1428,7 +1428,7 @@ pub(crate) fn run_seeded(
                                 .collect();
                             exclude_matrix_regions(luma, &regions)
                         })],
-                        engine::FormatFilter::Linear,
+                        engine::FormatFilter::NonQr,
                         &mut stages,
                     )?;
                 }
@@ -3221,7 +3221,7 @@ mod ladder_mutant_kills {
         ));
         let mut stages = Vec::new();
         run.rescue_stage(&luma, &mut stages).unwrap();
-        assert!(stages.is_empty());
+        assert_eq!(stages.len(), 0);
     }
 
     #[test]
@@ -3865,7 +3865,7 @@ mod ladder_mutant_kills {
         cancel.cancel();
         let mut run = fresh_run(&cancel, (64, 64));
         run.confirm(&plane, vec![upce(b"7")], false);
-        assert!(run.confirmations.is_empty());
+        assert_eq!(run.confirmations.len(), 0);
     }
 
     #[test]
@@ -3892,6 +3892,6 @@ mod ladder_mutant_kills {
         run.stage("pyramid", attempts, engine::FormatFilter::All, &mut stages)
             .unwrap();
         assert!(run.store.settled());
-        assert!(run.confirmations.is_empty());
+        assert_eq!(run.confirmations.len(), 0);
     }
 }

@@ -609,7 +609,7 @@ mod tests {
         // than mid-grey (luma below 128), black from 128 up — the symbol's
         // modules here are opaque grey 128
         let (mut rgba, side) = transparent_symbol();
-        for px in rgba.chunks_exact_mut(4) {
+        for px in rgba.as_chunks_mut::<4>().0 {
             if px[3] == 255 {
                 px[..3].fill(128);
             }

@@ -18,7 +18,7 @@ env:
   # bump, not on a random Tuesday (the repo's probe wrote that down after the
   # 1.96 runner deaths). MSRV (1.88) and fuzzing (a dated nightly) are the
   # named exceptions. RELEASING.md § toolchain has the why.
-  RUST_TOOLCHAIN: "1.97.0"
+  RUST_TOOLCHAIN: "1.99.1"
 
 jobs:
   lint:

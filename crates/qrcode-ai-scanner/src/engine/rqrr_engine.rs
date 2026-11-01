@@ -1,11 +1,11 @@
 //! rqrr wrapper — the geometry + metadata engine (quirc lineage).
 //!
 //! Always through `decode_to` raw bytes: rqrr's `decode()` forces UTF-8.
-//! rqrr parses ECI designators and DISCARDS them (0.10.1 and 0.11.0), so the
+//! rqrr parses ECI designators and DISCARDS them (verified on 0.11.0), so the
 //! adapter re-derives the segment structure from the sampled grid with the
 //! scanner's own codeword path — interpretation is OUR job, once, in
 //! `engine::content`. The verified stream decides the payload bytes too:
-//! rqrr's own conversion is not the truth (0.10.1 writes the Kanji values
+//! rqrr's own conversion is not the truth (0.11.0 still writes the Kanji values
 //! 5949-5951 as Shift JIS DF FD..DF FF — `value + 0x8140 <= 0x9FFC` —
 //! where ISO 18004 §7.4.6 gives 9F FD..9F FF). Which orientation verifies is
 //! checked, never assumed ([`settle`]); the read publishes the stream and

@@ -33,7 +33,7 @@ env:
   CARGO_TERM_COLOR: always
   # The toolchain CI tests (ci.yml RUST_TOOLCHAIN; RELEASING.md § toolchain).
   # jitpack.yml builds the JitPack AAR on its own (1.88.0), outside Actions.
-  RUST_TOOLCHAIN: "1.97.0"
+  RUST_TOOLCHAIN: "1.99.1"
 
 jobs:
   # PR/push gate (mirrors python.yml's `test` job): host build of the wrapper +

@@ -1704,7 +1704,7 @@ mod tests {
             place: None,
         };
         let store = store_with(read(0, b"xyz", Unobserved, Q, NOWHERE), refusal.clone());
-        assert!(published(&store).is_empty());
+        assert_eq!(published(&store).len(), 0);
         let mut both = read(0, b"xyz", Unobserved, Q, NOWHERE);
         both.engines.push((
             Rxing,
@@ -1741,7 +1741,7 @@ mod tests {
         assert_eq!(published(&store_with(twice, port(b"abc", R))).len(), 1);
         // a read without a place never fails the place test
         let store = store_with(read(0, b"abc", Signalled, X, NOWHERE), port(b"abc", R));
-        assert!(published(&store).is_empty());
+        assert_eq!(published(&store).len(), 0);
     }
 
     #[test]
@@ -1782,7 +1782,7 @@ mod tests {
         store.collect(read(3, b"zzz", Signalled, X, NOWHERE));
         store.refuse(port(b"zzz", None), 3);
         assert_eq!(store.refusals.len(), MAX_REFUSALS, "the capacity holds");
-        assert!(published(&store).is_empty());
+        assert_eq!(published(&store).len(), 0);
         store.collect(read(3, b"zzz", Signalled, X, NOWHERE));
         assert!(published(&store).is_empty(), "the same attempt's read too");
         store.collect(read(4, b"zzz", Signalled, X, NOWHERE));
@@ -1791,7 +1791,7 @@ mod tests {
         assert_eq!(store.seed(0).refusals.len(), MAX_REFUSALS + 1);
         let mut walk2 = ReadStore::seeded(store.seed(0));
         walk2.collect(read(9, b"zzz", Signalled, X, NOWHERE));
-        assert!(published(&walk2).is_empty());
+        assert_eq!(published(&walk2).len(), 0);
     }
 
     /// A port refusal of `raw` at a 100 px square at `x`.
@@ -1906,7 +1906,7 @@ mod tests {
         );
         let mut walk2 = ReadStore::seeded(seed);
         walk2.collect(read(3, b"other", NoEci, X, NOWHERE));
-        assert!(published(&walk2).is_empty());
+        assert_eq!(published(&walk2).len(), 0);
     }
 
     #[test]

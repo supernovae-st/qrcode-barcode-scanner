@@ -5,7 +5,7 @@ other supported 2D formats. Its runtime bindings share the versioned scan-report
 contract. QR and barcode use cases do not require separate engine repositories.
 
 The source repository is
-[`supernovae-st/qrcode-barcode-scanner`](https://github.com/supernovae-st/qrcode-barcode-scanner).
+[`qrcode-ai-com/qrcode-barcode-scanner`](https://github.com/qrcode-ai-com/qrcode-barcode-scanner).
 The repository retains its identity, commits and tags across renames. Existing
 crates, npm packages, Python packages, commands and OCI images keep their
 `qrcode-ai-scanner` names. Use the coordinates in [README.md](README.md) and the

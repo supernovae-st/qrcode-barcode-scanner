@@ -109,7 +109,11 @@ pub(super) fn decode(luma: &LumaImage, filter: super::FormatFilter) -> Vec<RawDe
     use rxing::BarcodeFormat as F;
     let possible = match filter {
         super::FormatFilter::All => None,
-        super::FormatFilter::Linear => Some(std::collections::HashSet::from([
+        super::FormatFilter::NonQr => Some(std::collections::HashSet::from([
+            F::DATA_MATRIX,
+            F::AZTEC,
+            F::PDF_417,
+            F::MAXICODE,
             F::EAN_13,
             F::EAN_8,
             F::UPC_A,
@@ -154,7 +158,7 @@ pub(super) fn decode(luma: &LumaImage, filter: super::FormatFilter) -> Vec<RawDe
     if matches!(
         filter,
         super::FormatFilter::All
-            | super::FormatFilter::Linear
+            | super::FormatFilter::NonQr
             | super::FormatFilter::Only(Symbology::DataBarExpanded)
     ) && !results
         .iter()

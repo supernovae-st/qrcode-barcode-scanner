@@ -13,7 +13,7 @@ env:
   CARGO_TERM_COLOR: always
   # The deep gates judge the compiler CI tests and the publishers build with
   # (ci.yml's RUST_TOOLCHAIN, RELEASING.md § toolchain) — never moving stable.
-  RUST_TOOLCHAIN: "1.97.0"
+  RUST_TOOLCHAIN: "1.99.1"
   # cargo-fuzz needs nightly: one dated nightly instead of whatever nightly
   # the run day brings.
   FUZZ_TOOLCHAIN: nightly-2026-08-24

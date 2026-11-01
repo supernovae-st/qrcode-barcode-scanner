@@ -66,7 +66,7 @@ fn generated_url_qr_end_to_end() {
             url: "https://qrcode-ai.com/scan".into()
         }
     );
-    assert!(!d.engines.is_empty());
+    assert_ne!(d.engines.len(), 0);
     // rqrr supplies geometry on clean codes — corners + version + modules.
     assert!(d.corners.is_some());
     let version = d.meta.version.expect("version measured");
@@ -81,7 +81,7 @@ fn legacy_clean_image_decodes_in_early_stages() {
         .scan(ImageInput::encoded(&bytes))
         .unwrap();
     assert_eq!(report.detections.len(), 1, "trace: {:?}", report.trace);
-    assert!(!report.detections[0].content.text.is_empty());
+    assert_ne!(report.detections[0].content.text.len(), 0);
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn no_qr_is_ok_with_empty_detections() {
     let report = Scanner::default()
         .scan(ImageInput::encoded(&bytes))
         .unwrap();
-    assert!(report.detections.is_empty());
+    assert_eq!(report.detections.len(), 0);
     assert!(report.score.is_none());
     assert!(!report.trace.stages.is_empty(), "ladder must have run");
 }
@@ -164,7 +164,7 @@ fn batch_matches_individual_scans() {
     let solo_qr = scanner.scan(ImageInput::encoded(&qr)).unwrap();
     let batch_qr = batch[0].as_ref().unwrap();
     assert_eq!(solo_qr.detections, batch_qr.detections);
-    assert!(batch[1].as_ref().unwrap().detections.is_empty());
+    assert_eq!(batch[1].as_ref().unwrap().detections.len(), 0);
 }
 
 #[test]

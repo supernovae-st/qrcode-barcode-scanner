@@ -431,7 +431,7 @@ mod tests {
         let parsed = parse(&stream("0001 0000000101 0000001100 0100010 0000"), 1).unwrap();
         assert_eq!(parsed.bytes, b"01234");
         assert_eq!(parsed.fnc1, Fnc1::None);
-        assert!(parsed.eci.is_empty());
+        assert_eq!(parsed.eci.len(), 0);
         assert!(!parsed.structured_append && parsed.segments.is_empty());
         assert!(parsed.byte_segments.is_empty(), "numeric data only");
     }
@@ -454,7 +454,7 @@ mod tests {
             parsed.byte_segments,
             std::iter::once(0..3).collect::<Vec<_>>()
         );
-        assert!(parsed.segments.is_empty());
+        assert_eq!(parsed.segments.len(), 0);
     }
 
     #[test]
@@ -520,7 +520,10 @@ mod tests {
             [span(Kanji, 0, 2), span(Hanzi, 2, 4)]
         );
         // a segment of no character is no span, first or after another
-        assert!(segments("1000 00000000 0100 00000001 00101101 0000").is_empty());
+        assert_eq!(
+            segments("1000 00000000 0100 00000001 00101101 0000").len(),
+            0
+        );
         assert_eq!(
             segments(&format!("1000 00000001 {ri} 1000 00000000 0000")),
             [span(Kanji, 0, 2)]

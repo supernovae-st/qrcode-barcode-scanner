@@ -477,7 +477,7 @@ mod sys {
         fn kill(pid: i32, signal: i32) -> i32;
         fn getpid() -> i32;
         fn signal(signum: i32, handler: usize) -> usize;
-        fn write(fd: i32, buf: *const u8, count: usize) -> isize;
+        fn write(fd: i32, buf: *const std::ffi::c_void, count: usize) -> isize;
         fn _exit(status: i32) -> !;
         fn getrlimit(resource: i32, limit: *mut Rlimit) -> i32;
         fn setrlimit(resource: i32, limit: *const Rlimit) -> i32;
@@ -616,7 +616,7 @@ mod sys {
         // SAFETY: write(2) and _exit are async-signal-safe; the buffer is
         // static.
         unsafe {
-            let _ = write(2, note.as_ptr(), note.len());
+            let _ = write(2, note.as_ptr().cast(), note.len());
             _exit(128 + signal);
         }
     }

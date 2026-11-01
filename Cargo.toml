@@ -39,7 +39,9 @@ rxing = { version = "=0.9.3", default-features = false, features = [
   "full_barcode_format_support",
   "encoding_rs",
 ] }
-rqrr = "0.10.1"
+# Fixes mixed-size RS deinterleaving and truncated count indicators;
+# the independent rqrr_upgrade tests pin both component and scanner behavior.
+rqrr = "=0.11.0"
 
 # imaging — formats limited to what the product accepts
 image = { version = "0.25", default-features = false, features = [

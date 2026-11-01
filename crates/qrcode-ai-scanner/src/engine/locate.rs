@@ -783,7 +783,7 @@ mod tests {
         let Located::Parsed { segments, eci, .. } = found else {
             panic!("{found:?}");
         };
-        assert!(eci.is_empty());
+        assert_eq!(eci.len(), 0);
         assert_eq!(
             segments,
             [DoubleByteSpan {

@@ -199,7 +199,9 @@ fn codeword_margins(
     let span = hi - lo;
 
     let margins = all
-        .chunks_exact(8)
+        .as_chunks::<8>()
+        .0
+        .iter()
         .map(|module_bytes| {
             module_bytes
                 .iter()

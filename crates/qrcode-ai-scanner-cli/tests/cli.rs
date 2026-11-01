@@ -106,7 +106,7 @@ fn score_only_under_frame_profile_is_usage_error_2() {
         Some(2),
         "score suppressed by profile = usage error"
     );
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     assert_eq!(
         String::from_utf8(out.stderr).unwrap(),
         "✖ the frame profile computes no score (use --profile full|fast)\n"
@@ -122,7 +122,7 @@ fn score_only_without_a_detection_is_exit_1_and_says_so() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(1));
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     assert_eq!(
         String::from_utf8(out.stderr).unwrap(),
         "no QR code found — no score\n"
@@ -145,7 +145,7 @@ fn score_only_with_every_axis_skipped_is_usage_error_2() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(2));
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     assert_eq!(
         String::from_utf8(out.stderr).unwrap(),
         "✖ every stress axis is skipped — no score to print (drop an axis from --score-skip-axes)\n"

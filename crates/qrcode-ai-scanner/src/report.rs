@@ -1253,9 +1253,9 @@ mod tests {
     #[test]
     fn empty_report_has_no_detections_and_no_score() {
         let report = ScanReport::empty();
-        assert!(report.detections.is_empty());
+        assert_eq!(report.detections.len(), 0);
         assert!(report.score.is_none());
-        assert!(report.hints.is_empty());
+        assert_eq!(report.hints.len(), 0);
         assert_eq!(report.versions, Versions::current());
     }
 

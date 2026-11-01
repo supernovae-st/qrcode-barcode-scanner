@@ -9,16 +9,17 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
 ### Fixed
 
 - A QR code found in the downscaled pyramid no longer suppresses a readable
-  neighboring linear barcode. A budgeted linear-only read at input resolution
+  neighboring barcode or small matrix code. One budgeted non-QR read at input resolution
   completes QR pyramid results before the early return.
   Regression coverage retains `STOCK-4827` beside a QR in fast, frame and full
-  profiles, including both browser WASM variants. Detection identity, QR quality
+  profiles, including the existing browser WASM checks, and adds native exact
+  QR/Data Matrix coverage in both placements. Detection identity, QR quality
   scoring and wire fields remain unchanged; `versions.pipeline` advances to 4.
 - Preserved the console candidate's Code 93 checksum rejection, small DataBar
   decoding and guarded DataBar Expanded recovery. The consolidated rxing 0.9.3
   adapter retains the local Expanded reader with its Apache-2.0 notices, valid
   positive fixtures and illegal finder-sequence negative vector.
-- The complementary linear pass masks only measured regions of already admitted
+- The complementary non-QR pass masks only measured regions of already admitted
   QR symbols on its cloned plane. This avoids the false Code 39 `J` read from an
   artistic QR's module texture while retaining genuine Code 39 symbols,
   including a one-character `J` alone and beside a QR. Ordinary Code 39 admission
@@ -38,6 +39,13 @@ Kotlin/Android · Swift/iOS · Flutter bindings.
 
 ### Changed
 
+- Pin rqrr 0.11.0 for corrected mixed-size Reed-Solomon block deinterleaving
+  and truncated character-count rejection. Independently encoded regressions
+  preserve exact scanner content and verify restored rqrr consensus; the
+  scanner's existing strict parser continues to reject malformed prefixes.
+- Build and CI compiler pins use Rust 1.99.1. The minimum supported Rust
+  version remains 1.88; typed slice chunks and C buffer declarations match
+  the compiler checks without suppressing warnings.
 - Consolidated the compatible WASM/automatic loader and exact historical registry
   probes from the 0.10.1 branch. The historical probes remain separately named;
   they do not qualify 0.11.0 registry publication.

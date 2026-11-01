@@ -2909,7 +2909,7 @@ mod tests {
 
         let completed = whole(|_| {});
         assert_eq!(row(&completed), ("completed", 0));
-        assert!(missing(&completed).is_empty());
+        assert_eq!(missing(&completed).len(), 0);
 
         let one_segment = measurement(&full, 10, vec![segment(10, 10.0, 1.0)]);
         assert_eq!(row(&one_segment), ("partial", 3), "1 of 16 segments");
@@ -3058,7 +3058,7 @@ mod tests {
         });
         assert_eq!(status(&one, &declared_of(&one)), ("completed", 0));
         let rows = set_rows(&one);
-        assert!(rows.breaches.is_empty());
+        assert_eq!(rows.breaches.len(), 0);
         assert_eq!(
             rows.budgeted_disagreements,
             vec![String::from("lib/frame vendored 1")]

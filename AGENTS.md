@@ -12,7 +12,7 @@ scanner engine and one package family: **QR Code & Barcode Scanner**.
 QR/barcode modes and SEO pages do not authorize
 separate scanner engines, product extractions or alias/wrapper packages.
 
-The source repository is `supernovae-st/qrcode-barcode-scanner`. Its repository
+The source repository is `qrcode-ai-com/qrcode-barcode-scanner`. Its repository
 identity, history and tags are retained from its previous names. Published
 packages still use `qrcode-ai-scanner`; do not replace their install coordinates
 with the repository name. QR Code AI's SaaS and its creation engine have separate
@@ -60,19 +60,30 @@ score honesty is a cross-repo contract.
 
 ## Commands
 
+Use the compiler pin and locked gates in
+[Local development checks](RELEASING.md#local-development-checks). The workflow
+pin and the MSRV are separate contracts; an ambient Cargo compiler is not proof
+of CI parity. Inspect `RUST_TOOLCHAIN` in `.github/workflows/ci.yml` when the pin
+changes, and update command examples and condensed agent contexts together.
+
 ```bash
-cargo nextest run --workspace        # the test suite (count = whatever it prints)
-cargo clippy --workspace --all-targets   # MUST stay at 0 warnings (pedantic)
-cargo fmt --all
-cargo +1.88 check --locked           # MSRV floor
+cargo +1.99.1 nextest run --workspace --locked  # count = actual executed tests
+cargo +1.99.1 test --doc --workspace --locked
+RUSTFLAGS="-D warnings" cargo +1.99.1 clippy --workspace --all-targets --all-features --locked
+cargo +1.99.1 fmt --all --check
+cargo +1.88 check -p qrcode-ai-scanner --all-features --locked  # MSRV floor
 python3 scripts/check-type-parity.py # Rust ↔ TS ↔ JSON-Schema drift gate
-cargo run -p xtask -- corpus-report  # decode-rate table from corpus.toml
-cargo run -p xtask -- sync-version [--check]  # one source → all 9 version surfaces (incl. doc pins)
-cargo run -p xtask -- gen-fixtures   # regenerate deterministic fixtures
+cargo +1.99.1 run --locked -p xtask -- corpus-report
+cargo +1.99.1 run --locked -p xtask -- sync-version --check
 ./scripts/build-wasm.sh              # wasm pkg (NEEDS binaryen ≥130 on PATH)
 node crates/qrcode-ai-scanner-node/test.mjs   # node smoke (build first: npm run build)
 node crates/qrcode-ai-scanner-wasm/test.mjs   # wasm smoke (build first)
 ```
+
+Regeneration commands write files: `xtask gen-fixtures`, `xtask sync-version`
+without `--check`, and `cargo fmt --all`. Use them for the intended owned change.
+Dependency/core changes also require the runbook's four excluded lock-root
+checks; a workspace pass does not cover Python, UniFFI, Flutter Rust or fuzz.
 
 Deep checks (weekly `deep-checks.yml`): cargo-mutants in 85 shards, judged
 by the `mutants-summary` job — red on a baseline failure or on any missed /

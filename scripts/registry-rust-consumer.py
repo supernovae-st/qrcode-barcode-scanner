@@ -161,10 +161,10 @@ def main():
     before = tracked_hashes(source)
     (proof / "source-input-sha256.json").write_text(json.dumps(before, indent=2) + "\n")
     target = os.environ["REGISTRY_TARGET"]
-    rustc = subprocess.check_output(["rustc", "+1.97.0", "--version", "--verbose"], text=True)
-    assert "rustc 1.97.0 " in rustc and "host: " + target in rustc
+    rustc = subprocess.check_output(["rustc", "+1.99.1", "--version", "--verbose"], text=True)
+    assert "rustc 1.99.1 " in rustc and "host: " + target in rustc
     (proof / "rustc.txt").write_text(rustc)
-    (proof / "cargo.txt").write_text(subprocess.check_output(["cargo", "+1.97.0", "--version"], text=True))
+    (proof / "cargo.txt").write_text(subprocess.check_output(["cargo", "+1.99.1", "--version"], text=True))
 
     def command(label, argv, expected=0, cwd=root):
         record = {"label": label, "argv": [str(a) for a in argv], "cwd": str(cwd),
@@ -222,9 +222,9 @@ def main():
     (app / "src/main.rs").write_text(CORE_MAIN)
     shutil.copyfile(app / "Cargo.toml", proof / "consumer-Cargo.toml")
     shutil.copyfile(app / "src/main.rs", proof / "consumer-main.rs")
-    command("core-generate-lockfile", ["cargo", "+1.97.0", "generate-lockfile"], cwd=app)
+    command("core-generate-lockfile", ["cargo", "+1.99.1", "generate-lockfile"], cwd=app)
     lock_before = sha(app / "Cargo.lock")
-    metadata = json.loads(command("core-metadata", ["cargo", "+1.97.0", "metadata", "--locked", "--format-version", "1"], cwd=app).stdout)
+    metadata = json.loads(command("core-metadata", ["cargo", "+1.99.1", "metadata", "--locked", "--format-version", "1"], cwd=app).stdout)
     core = [p for p in metadata["packages"] if p["name"] == "qrcode-ai-scanner"]
     assert len(core) == 1 and core[0]["version"] == VERSION and core[0]["source"] == REGISTRY_SOURCE
     assert all(p["source"] == REGISTRY_SOURCE for p in metadata["packages"] if p["id"] != metadata["resolve"]["root"])
@@ -234,12 +234,12 @@ def main():
     assert len(core_entry) == 1 and core_entry[0]["checksum"] == EXPECTED["qrcode-ai-scanner"]
     rxing = [p for p in lock["package"] if p["name"] == "rxing"]
     assert len(rxing) == 1 and rxing[0]["version"] == "0.9.1"
-    command("core-runtime", ["cargo", "+1.97.0", "run", "--release", "--locked", "--target", target, "--", proof], cwd=app)
+    command("core-runtime", ["cargo", "+1.99.1", "run", "--release", "--locked", "--target", target, "--", proof], cwd=app)
     assert json.loads((proof / "core-runtime.stdout").read_text()) == {"verdict": "PASS", "core_cases": 5, "schema_reports": 3}
     assert sha(app / "Cargo.lock") == lock_before
     shutil.copyfile(app / "Cargo.lock", proof / "consumer-Cargo.lock")
     installed = root / "installed"
-    command("cli-registry-install", ["cargo", "+1.97.0", "install", "qrcode-ai-scanner-cli", "--version", "=0.10.1", "--locked", "--target", target, "--root", installed])
+    command("cli-registry-install", ["cargo", "+1.99.1", "install", "qrcode-ai-scanner-cli", "--version", "=0.10.1", "--locked", "--target", target, "--root", installed])
     binary = installed / "bin" / ("qrscan.exe" if os.name == "nt" else "qrscan")
     assert command("cli-version", [binary, "--version"]).stdout.strip() == "qrscan " + VERSION
     fixture = proof / "fixture.png"

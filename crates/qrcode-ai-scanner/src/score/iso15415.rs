@@ -44,7 +44,7 @@ fn grade_ceiling(value: f32, ceilings: [f32; 4]) -> IsoGrade {
 
 /// Sorted-slice percentile (nearest-rank; `p` in 0.0..=1.0).
 fn percentile(sorted: &[u8], p: f32) -> u8 {
-    debug_assert!(!sorted.is_empty());
+    debug_assert_ne!(sorted.len(), 0);
     #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,

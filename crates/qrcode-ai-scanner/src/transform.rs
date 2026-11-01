@@ -204,7 +204,7 @@ fn flatten_or_drop(
     }
     let mut luma = Vec::with_capacity(data.len() / 4);
     let mut rgb = Vec::with_capacity(data.len() / 4 * 3);
-    for px in data.chunks_exact(4) {
+    for px in data.as_chunks::<4>().0 {
         luma.push(bt601(px[0], px[1], px[2]));
         rgb.extend_from_slice(&px[..3]);
     }
@@ -241,7 +241,7 @@ fn flatten(
     let mut rgb = colored.then(|| Vec::with_capacity(pixels * 3));
     let mut fg_luma = Vec::with_capacity(pixels);
     let mut alpha_plane = Vec::with_capacity(pixels);
-    for px in data.chunks_exact(4) {
+    for px in data.as_chunks::<4>().0 {
         let a = px[3];
         let (r, g, b) = (
             crate::alpha::composite(px[0], bg[0], a),
