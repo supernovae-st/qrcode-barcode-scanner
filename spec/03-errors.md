@@ -21,11 +21,24 @@ code; the cross-surface match contract is the regex `QRS-\d{3}`
 | Surface | Shape | How to match |
 |---|---|---|
 | Rust | `Err(ScanError)` — `.code()` returns `"QRS-xxx"`, `thiserror` + `miette` diagnostics | `match err.code() { "QRS-003" => … }` |
-| CLI stderr | `error: <message> [QRS-xxx]` + exit code 2 | match the code, not the prose |
-| Node | rejected Promise (`scanSync`: thrown `Error`), `Error.message` ends with `[QRS-xxx]`; a pre-aborted signal rejects with an `AbortError` DOMException | `e.message.match(/QRS-\d{3}/)` |
+| CLI stderr | `✖ <message> [QRS-xxx]` + exit code 2 (the glyph and its color are presentation) | match the code, not the prose |
+| Node | rejected Promise (`scanSync`: thrown `Error`), `Error.message` ends with `[QRS-xxx]`; an aborted signal rejects a queued scan with an `AbortError` DOMException | `e.message.match(/QRS-\d{3}/)` |
 | WASM | thrown `JsError`, message ends with `[QRS-xxx]` | same match |
 | Python | raised `ValueError`, message ends with `[QRS-xxx]` | `re.search(r"QRS-\d{3}", str(e))` |
-| Kotlin / Swift | thrown `ScanBindingError.ScanFailed`, message ends with `[QRS-xxx]` | same match |
+| Kotlin / Swift | thrown `ScanBindingException.ScanFailed` (Kotlin) · `ScanBindingError.ScanFailed` (Swift), its message carries `[QRS-xxx]` | same match |
+| Flutter | the thrown error value, a `String` ending with `[QRS-xxx]` | `RegExp(r'QRS-\d{3}').firstMatch('$e')` |
+
+Only a scan fault carries a code. A binding's own argument error has none:
+an unknown name (a profile, stress axis, score check, alpha background,
+palette color or preset), a palette list above 32 colors, or a value its
+integer type cannot hold. That is Node's and WASM's thrown error, Python's
+`ValueError` (`OverflowError`/`TypeError` for a conversion), Flutter's thrown
+`String`, and Kotlin/Swift's own case (`UnknownProfile`, `PaletteTooLarge`, …).
+Match it by its type or case, never by a code it does not have.
+
+`QRS-005` comes only from Rust's `scan_cancellable`. Node's `AbortSignal`
+rejects a queued scan with an `AbortError` and never interrupts a running
+one; the other bindings expose no cancellation.
 
 ## CLI exit codes (the headline contract)
 

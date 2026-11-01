@@ -28,8 +28,9 @@ export 'src/rust/frb_generated.dart' show RustLib;
 /// Scans run on flutter_rust_bridge's Rust worker pool, so `await` never blocks
 /// the UI isolate. Valid `profile`s are `'full'` (default for [scan]), `'fast'`,
 /// and `'frame'` (default for [scanFrame]). "No QR found" is a normal result
-/// (empty [ScanReport.detections]), not an error; errors carry the `[QRS-xxx]`
-/// wire code in the thrown message.
+/// (empty [ScanReport.detections]), not an error. A scan fault throws a
+/// `String` ending with the `[QRS-xxx]` wire code; an unknown profile name
+/// throws without a code.
 ///
 /// Budget: [scan] and [scanFrame] run under the profile's default wall-clock
 /// budget (`full` 4000 ms · `fast` 800 ms · `frame` 80 ms); this release cannot

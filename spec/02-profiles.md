@@ -90,29 +90,31 @@ reading "NO" on valid product output is the documented trap.
 
 | Limit | Default | Surface knobs |
 |---|---|---|
-| `max_dimension` (px per side) | 10 000 | Rust `Limits` · Node `maxDimension` · WASM arg · Python/UniFFI `max_dimension` |
-| `max_pixels` (total) | 64 000 000 | Rust `Limits` · Node `maxPixels` · WASM arg · Python/UniFFI `max_pixels` |
+| `max_dimension` (px per side) | 10 000 | Rust `Limits` · Node `maxDimension` · WASM `scan_image` arg · Python/UniFFI `max_dimension` |
+| `max_pixels` (total) | 64 000 000 | Rust `Limits` · Node `maxPixels` · WASM `scan_image` arg · Python/UniFFI `max_pixels` |
 | `max_engine_side` (internal) | 2 048 | Rust `ScanConfig` only — engines NEVER see larger |
 | decoder allocation cap | `max_pixels × 8` bytes | automatic (decompression-bomb guard) |
 | detections per report | 16 | fixed |
 | rescue candidates per scan | 4 | fixed |
 
+WASM `scan_frame` and Flutter take no limits: they scan under the defaults.
 Server guidance: lower `maxDimension`/`maxPixels` for untrusted uploads
 (e.g. 4096 / 16M). Violations are `QRS-002`/`QRS-003` errors — see
 [03-errors.md](03-errors.md).
 
 ## Option domains (validated BEFORE the input)
 
-Every surface admits the same values and refuses the others with `QRS-006`
-([03-errors.md](03-errors.md)) before a byte of the input is read: an
-invalid option beside unreadable bytes is `QRS-006`, never `QRS-001`.
+Every surface that exposes an option admits the same values and refuses the
+others with `QRS-006` ([03-errors.md](03-errors.md)) before a byte of the
+input is read: an invalid option beside unreadable bytes is `QRS-006`, never
+`QRS-001`.
 
 | Option | Admitted | `QRS-006` |
 |---|---|---|
 | `budget_ms` | unset (the profile default) · `0` (unbounded) · 1 to 4 294 967 295 ms | above 4 294 967 295 |
 | `max_dimension` | 1 to 4 294 967 295 px | `0` |
 | `max_pixels` | 1 to 2⁶⁴ − 1 px (JavaScript: to 2⁵³ − 1) | `0` |
-| `alpha_palette` | at most 32 colors | more |
+| `alpha_palette` (Rust `ScanConfig`) | at most 32 colors | more |
 | `pyramid_side` · `max_engine_side` (Rust `ScanConfig`) | 1 or more px | `0` |
 
 The budget's maximum, about 49.7 days, is the one range every binding
@@ -145,7 +147,8 @@ same way on both — never through an integer conversion that wraps modulo
 
 Unknown names (a profile, stress axis, score check, alpha background,
 palette color or preset) keep each binding's own loud error, without a
-`QRS` code.
+`QRS` code. So does a binding's palette list above 32 colors: the bindings
+refuse it before the core sees it (Kotlin/Swift: `PaletteTooLarge`).
 
 ## Cancellation
 

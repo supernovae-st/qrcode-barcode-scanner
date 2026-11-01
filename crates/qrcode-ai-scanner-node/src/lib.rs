@@ -2,8 +2,8 @@
 //!
 //! CPU-bound scans run as `AsyncTask` on the libuv pool: the event loop
 //! never blocks, even on a 2-4s artistic-QR Full scan. `AbortSignal`
-//! cancels queued tasks; once running, cancellation is cooperative
-//! (checked between decode attempts).
+//! rejects a queued task with an `AbortError`; a running scan is not
+//! interrupted (the budget bounds it, see `ScanTask`).
 //!
 //! Reports cross the boundary as JSON strings (the exact serde contract,
 //! snake_case, `raw` as base64) — the index.js wrapper parses them. One
